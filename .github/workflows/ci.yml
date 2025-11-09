@@ -72,10 +72,10 @@ jobs:
 
           # Write the manifest
           cat > my_manifest.py <<EOF
-          include("${PORT_DIR}/boards/manifest.py")
-          freeze("src", opt=3)
-          module("pb_version.py", base_path="frozen_modules")
-          EOF
+      include("${PORT_DIR}/boards/manifest.py")
+      freeze("src", opt=3)
+      module("pb_version.py", base_path="frozen_modules")
+      EOF
 
       - name: Build UF2 (RPI_PICO2_W)
         working-directory: ${{ env.PORT_DIR }}
