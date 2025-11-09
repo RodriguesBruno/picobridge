@@ -62,12 +62,19 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+
+          # Generate pb_version.py file
           echo "__version__ = '${VERSION}'" > pb_version.py
 
+          # Make sure it's saved in a path the manifest can stat
+          mkdir -p frozen_modules
+          mv pb_version.py frozen_modules/
+
+          # Write the manifest
           cat > my_manifest.py <<EOF
           include("${PORT_DIR}/boards/manifest.py")
           freeze("src", opt=3)
-          module("pb_version.py", open("pb_version.py").read())
+          module("pb_version.py", base_path="frozen_modules")
           EOF
 
       - name: Build UF2 (RPI_PICO2_W)
