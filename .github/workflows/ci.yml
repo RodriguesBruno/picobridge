@@ -3,7 +3,6 @@ name: Build UF2 (Pico 2 W)
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*', 'V*' ]
   workflow_dispatch:
 
 jobs:
@@ -20,92 +19,81 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ---- Toolchain (no custom Dockerfile) ----
-      - name: Install build deps (apt)
+      # Compute a nice VERSION and expose to later steps as $VERSION
+      - name: Compute version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            VER="$GITHUB_REF_NAME"
+          else
+            # Use nearest tag or short SHA if no tags
+            VER="$(git describe --tags --always --dirty || echo "${GITHUB_SHA::7}")"
+          fi
+          echo "VERSION=$VER" >> "$GITHUB_ENV"
+          echo "Version: $VER"
+
+      # Base toolchain from apt (no custom Dockerfile); skip cmake here
+      - name: Install toolchain via apt
         shell: bash
         run: |
           set -euxo pipefail
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential git python3 python3-venv python3-pip \
+            build-essential git python3 python3-venv \
             gcc-arm-none-eabi libnewlib-arm-none-eabi
 
-      - name: Install latest CMake & Ninja (PyPI)  # avoids Kitware repo keys
+      # Get a modern CMake + Ninja via pip (avoids Kitware APT + GPG issues)
+      - name: Install modern CMake + Ninja via pip
         shell: bash
         run: |
-          set -euxo pipefail
           python3 -m pip install --upgrade pip
           python3 -m pip install --user cmake ninja
+          # Put ~/.local/bin (where pip drops cmake) on PATH for the rest of the job
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           cmake --version
           ninja --version || true
 
-      # ---- Version string (fixes the ${{ VERSION }} error) ----
-      - name: Compute version string
-        id: ver
-        shell: bash
-        run: |
-          # If it's a tag build, use the tag; else short SHA
-          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
-            V="${GITHUB_REF#refs/tags/}"
-          else
-            V="$(git rev-parse --short=8 HEAD)"
-          fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-
-      # ---- MicroPython checkout ----
       - name: Clone MicroPython
         shell: bash
         run: |
-          set -eux
           git clone --depth 1 https://github.com/micropython/micropython.git "$MPY_DIR"
-          ( cd "$MPY_DIR" && git submodule update --init --recursive )
+          cd "$MPY_DIR"
+          git submodule update --init --recursive
 
-      - name: Build mpy-cross (optional but speeds up)
+      - name: Build mpy-cross
         shell: bash
-        run: |
-          make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
+        run: make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
 
-      # ---- Manifest that freezes YOUR repo ----
+      # Freeze your whole repo; also inject a tiny version module
       - name: Create frozen manifest
         shell: bash
         run: |
-          cat > my_manifest.py <<'PY'
-          # Pull in default rp2 modules
+          cat > my_manifest.py <<EOF
           include("$(PORT_DIR)/boards/manifest.py")
-          # Freeze your whole repo; contains main.py at repo root
           freeze("$(GITHUB_WORKSPACE)", opt=3)
-          PY
-          # Also generate a tiny module with the version
-          echo "__version__ = '${{ steps.ver.outputs.version }}'" > pb_version.py
+          module("pb_version.py", f"__version__ = '${{ env.VERSION }}'\\n")
+          EOF
+          echo "Manifest created with VERSION=${VERSION}"
 
-      # ---- Build UF2 for Pico 2 W ----
-      - name: Build (RPI_PICO2_W)
+      - name: Build UF2 (RPI_PICO2_W)
         shell: bash
+        working-directory: ${{ env.PORT_DIR }}
         run: |
-          set -eux
-          # Make sure submodules step runs with the board dir created
-          make -C "$PORT_DIR" BOARD=RPI_PICO2_W submodules
-          make -C "$PORT_DIR" clean
-          make -C "$PORT_DIR" BOARD=RPI_PICO2_W \
-            FROZEN_MANIFEST="$GITHUB_WORKSPACE/my_manifest.py" \
-            USER_C_MODULES= \
-            -j"$(nproc)"
+          make submodules
+          make clean
+          make BOARD=RPI_PICO2_W FROZEN_MANIFEST=$GITHUB_WORKSPACE/my_manifest.py -j"$(nproc)"
 
-      # ---- Package artifact with your exact name ----
       - name: Collect artifact
-        id: pkg
         shell: bash
         run: |
-          set -eux
-          OUT="picobridge_${{ steps.ver.outputs.version }}.uf2"
-          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "$OUT"
-          echo "outfile=$OUT" >> "$GITHUB_OUTPUT"
+          mkdir -p out
+          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${VERSION}.uf2"
+          ls -l out
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.pkg.outputs.outfile }}
-          path: ${{ steps.pkg.outputs.outfile }}
+          name: picobridge_${{ env.VERSION }}
+          path: out/picobridge_*.uf2
           if-no-files-found: error
