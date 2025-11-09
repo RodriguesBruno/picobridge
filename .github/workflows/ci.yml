@@ -65,10 +65,10 @@ jobs:
           echo "__version__ = '${VERSION}'" > pb_version.py
 
           cat > my_manifest.py <<EOF
-          include("${PORT_DIR}/boards/manifest.py")
-          freeze("${GITHUB_WORKSPACE}", opt=3)
-          module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
-          EOF
+      include("${PORT_DIR}/boards/manifest.py")
+      freeze("src", opt=3)
+      module("pb_version.py", open("pb_version.py").read())
+      EOF
 
       - name: Build UF2 (RPI_PICO2_W)
         working-directory: ${{ env.PORT_DIR }}
