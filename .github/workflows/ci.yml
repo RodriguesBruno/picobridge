@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     # Match your runner labels so the job lands on your container
-    runs-on: [self-hosted, linux, arm64, build]
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repo
