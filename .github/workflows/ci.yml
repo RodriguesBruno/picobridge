@@ -11,7 +11,7 @@ jobs:
     env:
       MPY_DIR: micropython
       PORT_DIR: micropython/ports/rp2
-      VERSION: ${{ github.ref_name || github.sha }}
+      VERSION: ${{ .github.ref_name || .github.sha }}
 
     steps:
       - name: Checkout repo
