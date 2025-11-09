@@ -1,0 +1,185 @@
+{% args version %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script type="text/javascript" src="/static/app.js"></script>
+    <title>PicoBridge v{{ version }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+    <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo"><i class="fa fa-asterisk"></i> PicoBridge</div>
+
+      <div class="pb-settings" aria-label="Settings">
+        <div class="system-monitor">
+          <p><strong>Device: </strong> <span id="pb-plugged-device">-</span></p>
+          <p><strong>Location: </strong> <span id="pb-location">-</span></p>
+        </div>
+      </div>
+
+      <!-- This block will be vertically centered between top and bottom -->
+      <div class="sidebar-mid">
+        <div class="uart-activity" aria-label="UART">
+          <!-- existing UART content -->
+          <div class="led-group">
+            <div class="led-wrapper" id="rx-led-wrapper">
+              <div class="led rx" id="rx-led"></div>
+              <span>RX</span>
+            </div>
+            <div class="led-wrapper" id="tx-led-wrapper">
+              <div class="led tx" id="tx-led"></div>
+              <span>TX</span>
+            </div>
+          </div>
+
+          <div class="uart-throughput">
+            <p><strong>RX:</strong> <span id="rx-rate">0 B/s</span></p>
+            <p><strong>TX:</strong> <span id="tx-rate">0 B/s</span></p>
+          </div>
+
+          <div class="tooltip" id="uart-tooltip">
+            <p><strong>Baudrate:</strong> <span id="baudrate"></span></p>
+            <p><strong>Bits:</strong> <span id="bits"></span></p>
+            <p><strong>Parity:</strong> <span id="parity"></span></p>
+            <p><strong>Stop Bits:</strong> <span id="stop"></span></p>
+          </div>
+        </div>
+
+        <div class="withMargin">
+          <button id="settings-btn" class="button-primary">Settings</button>
+        </div>
+      </div>
+
+      <!-- Bottom-pinned -->
+      <div class="pb-system" aria-label="System Memory">
+        <div class="system-monitor">
+          <p><strong>Allocated:</strong> <span id="mem-alloc">0</span></p>
+          <p><strong>Free:</strong> <span id="mem-free">0</span></p>
+        </div>
+      </div>
+
+      <footer class="sidebar-footer">
+        <small>Version: {{ version }}</small>
+      </footer>
+    </aside>
+
+
+    <!-- Main Terminal Content -->
+    <main class="terminal-panel">
+      <div class="terminal-display" id="terminal-output">
+          <div class="terminal-buttons">
+            <button id="copy-output" type="button" class="button-primary small">Copy</button>
+            <button id="download-output" type="button" class="button-primary small">Download</button>
+            <button id="clear-output" type="button" class="button-primary small">Clear</button>
+          </div>
+          <div id="terminal-scroll-content"></div>
+      </div>
+
+      <form id="terminal-form">
+        <input id="terminal-input" type="text" placeholder="Enter command..." autocomplete="off" />
+      </form>
+    </main>
+
+    </div>
+
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn" id="modal-close">&times;</span>
+
+                <form id="settings-form">
+                    <h2 class="withMargin">WIFI Settings</h2>
+
+                    <label class="switch withMargin">
+                      <input type="checkbox" id="is_ad_hoc" name="is_ad_hoc">
+                      <span class="slider"></span>
+                      <span class="switch-label">Ad-hoc mode</span>
+                    </label>
+
+                    <fieldset id="adhoc-fields">
+                      <legend>Ad-hoc</legend>
+                      <label>SSID:
+                        <input type="text" id="ssid_adhoc" name="ssid_adhoc" autocomplete="off">
+                      </label>
+                      <label>PSK:
+                        <input type="password" id="psk_adhoc" name="psk_adhoc" autocomplete="new-password">
+                      </label>
+                    </fieldset>
+
+                    <fieldset id="infra-fields">
+                      <legend>Infrastructure</legend>
+                      <label>SSID:
+                        <input type="text" id="ssid_infra" name="ssid_infra" autocomplete="off">
+                      </label>
+                      <label>PSK:
+                        <input type="password" id="psk_infra" name="psk_infra" autocomplete="new-password">
+                      </label>
+                    </fieldset>
+
+                    <h2 class="withMargin">Device Settings</h2>
+                    <label>Device:
+                        <input type="text" id="plugged_device" name="plugged_device">
+                    </label>
+                    <label>Location:
+                        <input type="text" id="location" name="location">
+                    </label>
+
+                    <h2 class="withMargin">UART Settings</h2>
+                    <label>Baudrate:
+                        <select name="baudrate" required>
+                            <option value="300">300</option>
+                            <option value="1200">1200</option>
+                            <option value="2400">2400</option>
+                            <option value="4800">4800</option>
+                            <option value="9600">9600</option>
+                            <option value="14400">14400</option>
+                            <option value="19200">19200</option>
+                            <option value="38400">38400</option>
+                            <option value="57600">57600</option>
+                            <option value="74880">74880</option>
+                            <option value="115200">115200</option>
+                            <option value="128000">128000</option>
+                            <option value="230400">230400</option>
+                            <option value="250000">250000</option>
+                            <option value="460800">460800</option>
+                            <option value="921600">921600</option>
+                        </select>
+                    </label>
+                    <label>Bits:
+                        <select name="bits">
+                            <option value="7">7</option>
+                            <option value="8" selected>8</option>
+                        </select>
+                    </label>
+                    <label>Parity:
+                        <select name="parity">
+                            <option value="None">None</option>
+                            <option value="0">Even</option>
+                            <option value="1">Odd</option>
+                        </select>
+                    </label>
+                    <label>Stop Bits:
+                        <select name="stop">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </label>
+                    <button type="submit" class="button-primary">Apply</button>
+
+                    <div class="bottom">
+                       <h5 class="warning"><strong>*Reboot if WI-FI settings changed</strong></h5>
+                   </div>
+
+                </form>
+            </div>
+        </div>
+    </body>
+</html>
+

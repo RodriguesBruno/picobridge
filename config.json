@@ -1,0 +1,35 @@
+{
+  "picobridge": {
+    "version": "1.1",
+    "plugged_device": "change me",
+    "location": "change me",
+    "port": 2222,
+    "wlan":  {
+      "is_ad_hoc": true,
+      "ad_hoc": {
+        "ssid": "PicoBridge",
+        "psk": "pico1234"
+      },
+      "infrastructure": {
+        "ssid": "MY_WIFI",
+        "psk": "my_wifi_password"
+      }
+    },
+    "uart": {
+      "physical": {
+        "uart_id": 0,
+        "tx_pin": 0,
+        "rx_pin": 1
+      },
+      "settings": {
+        "baudrate": 9600,
+        "bits": 8,
+        "parity": null,
+        "stop": 1
+      }
+    },
+    "webservice":  {
+    "port": 8080
+    }
+  }
+}
