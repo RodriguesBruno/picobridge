@@ -3,6 +3,7 @@ name: Build UF2 (Pico 2 W)
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   workflow_dispatch:
 
 jobs:
@@ -14,45 +15,39 @@ jobs:
       PORT_DIR: micropython/ports/rp2
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Compute a nice VERSION and expose to later steps as $VERSION
+      # Compute a nice version string for filenames:
+      #  - tag 'v1.2.3'  -> 1.2.3
+      #  - otherwise     -> <shortsha>
       - name: Compute version
+        id: ver
         shell: bash
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            VER="$GITHUB_REF_NAME"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v ]]; then
+            VER="${GITHUB_REF_NAME#v}"
           else
-            # Use nearest tag or short SHA if no tags
-            VER="$(git describe --tags --always --dirty || echo "${GITHUB_SHA::7}")"
+            VER="$(git rev-parse --short=8 HEAD)"
           fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VER" >> "$GITHUB_ENV"
-          echo "Version: $VER"
 
-      # Base toolchain from apt (no custom Dockerfile); skip cmake here
-      - name: Install toolchain via apt
+      - name: Install build deps (toolchain) + pip cmake
         shell: bash
         run: |
           set -euxo pipefail
           export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            build-essential git python3 python3-venv \
-            gcc-arm-none-eabi libnewlib-arm-none-eabi
-
-      # Get a modern CMake + Ninja via pip (avoids Kitware APT + GPG issues)
-      - name: Install modern CMake + Ninja via pip
-        shell: bash
-        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git python3 python3-pip gcc-arm-none-eabi libnewlib-arm-none-eabi
           python3 -m pip install --upgrade pip
-          python3 -m pip install --user cmake ninja
-          # Put ~/.local/bin (where pip drops cmake) on PATH for the rest of the job
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          cmake --version
-          ninja --version || true
+          # Install cmake from PyPI (avoids Kitware apt repo & GPG keys)
+          python3 -m pip install cmake
+          # Optional but nice
+          python3 -m pip install ninja
 
       - name: Clone MicroPython
         shell: bash
@@ -61,39 +56,42 @@ jobs:
           cd "$MPY_DIR"
           git submodule update --init --recursive
 
-      - name: Build mpy-cross
+      - name: Build mpy-cross (faster subsequent builds)
         shell: bash
         run: make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
 
-      # Freeze your whole repo; also inject a tiny version module
-      - name: Create frozen manifest
+      # Put your repo into the firmware as frozen modules.
+      # Also inject a tiny pb_version.py file that your app can import.
+      - name: Create manifest and version module
         shell: bash
         run: |
-          cat > my_manifest.py <<EOF
+          echo "__version__ = '${VERSION}'" > pb_version.py
+
+          cat > my_manifest.py << 'PY'
           include("$(PORT_DIR)/boards/manifest.py")
+          # Freeze your repo
           freeze("$(GITHUB_WORKSPACE)", opt=3)
-          module("pb_version.py", f"__version__ = '${{ env.VERSION }}'\\n")
-          EOF
-          echo "Manifest created with VERSION=${VERSION}"
+          # Add the version module we just wrote
+          module("pb_version.py", open("$(GITHUB_WORKSPACE)/pb_version.py").read())
+          PY
 
       - name: Build UF2 (RPI_PICO2_W)
-        shell: bash
         working-directory: ${{ env.PORT_DIR }}
+        shell: bash
         run: |
           make submodules
           make clean
           make BOARD=RPI_PICO2_W FROZEN_MANIFEST=$GITHUB_WORKSPACE/my_manifest.py -j"$(nproc)"
 
-      - name: Collect artifact
+      - name: Collect artifact (picobridge_{version}.uf2)
         shell: bash
         run: |
           mkdir -p out
-          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${VERSION}.uf2"
-          ls -l out
+          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${{ steps.ver.outputs.version }}.uf2"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: picobridge_${{ env.VERSION }}
+          name: picobridge_${{ steps.ver.outputs.version }}
           path: out/picobridge_*.uf2
           if-no-files-found: error
