@@ -36,10 +36,10 @@ jobs:
 
       - name: Create frozen manifest
         run: |
-          cat > my_manifest.py << 'PY'
+          cat > my_manifest.py << PY
           include("$(PORT_DIR)/boards/manifest.py")
           freeze("$(GITHUB_WORKSPACE)", opt=3)
-          module("pb_version.py", f"__version__ = '{'${{VERSION}}'}'\n")
+          module("pb_version.py", "__version__ = '${VERSION}'\n")
           PY
 
       - name: Build UF2 (RPI_PICO2_W)
