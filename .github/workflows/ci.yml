@@ -20,7 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Nice version string for artifact names
+      # Compute a nice version string for filenames:
+      #  - tag 'v1.2.3'  -> 1.2.3
+      #  - otherwise     -> <shortsha>
       - name: Compute version
         id: ver
         shell: bash
@@ -33,73 +35,80 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VER" >> "$GITHUB_ENV"
 
-      # Toolchains + modern cmake via PyPI; ensure PATH picks it up
-      - name: Install build deps (arm toolchain + cmake)
+      - name: Install build deps (no Kitware repo)
         shell: bash
         run: |
           set -euxo pipefail
           export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential git python3 python3-pip \
-            gcc-arm-none-eabi libnewlib-arm-none-eabi
+          # Some runner containers are already root and may not have sudo installed.
+          if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; else SUDO=""; fi
+
+          $SUDO apt-get update
+          $SUDO apt-get install -y --no-install-recommends \
+            ca-certificates curl git python3 python3-pip \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi \
+            build-essential make
+
+          # Fresh pip, cmake & ninja from PyPI (avoids apt-key drama)
           python3 -m pip install --upgrade pip
-          python3 -m pip install cmake ninja
-          # Use pip-installed cmake/ninja (fixes "old cmake" + picotool issues)
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          cmake --version
-          ninja --version || true
+          python3 -m pip install --upgrade cmake ninja
+
+          # Sanity check for make (fixes your exit 127)
+          command -v make
 
       - name: Clone MicroPython
         shell: bash
         run: |
+          set -euxo pipefail
           git clone --depth 1 https://github.com/micropython/micropython.git "$MPY_DIR"
-          cd "$MPY_DIR"
-          git submodule update --init --recursive
+          pushd "$MPY_DIR"
+          # Pull only what rp2 needs quickly (Reddit tip); make submodules later will fill the rest if needed.
+          git submodule update --init lib/pico-sdk lib/tinyusb
+          popd
 
-      - name: Build mpy-cross
+      - name: Build mpy-cross (speeds up subsequent builds)
         shell: bash
-        run: make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
+        run: |
+          set -euxo pipefail
+          make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
 
-      # Create a tiny version module and a manifest that freezes your repo
+      # Freeze your repo into the firmware + inject a version module.
+      # IMPORTANT: expand real paths now (don’t leave $(... ) literals in the file).
       - name: Create manifest and version module
         shell: bash
         run: |
           set -euxo pipefail
           echo "__version__ = '${VERSION}'" > pb_version.py
 
-          # Bake absolute paths into the manifest so nothing relies on $(...) expansion
-          cat > my_manifest.py <<PY
-          include("${PORT_DIR}/boards/manifest.py")
-          freeze("${GITHUB_WORKSPACE}", opt=3)
-          module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
-          PY
+          MPY_PORT_MANIFEST="$GITHUB_WORKSPACE/$PORT_DIR/boards/manifest.py"
+          REPO_ROOT="$GITHUB_WORKSPACE"
 
-      # OPTIONAL: simple "Reddit way" as an alternative to manifests:
-      # Copy your .py into rp2/modules so they're frozen automatically.
-      # Uncomment to use this mode instead of FROZEN_MANIFEST.
-      # - name: Copy sources into rp2/modules (alternative to manifest)
-      #   shell: bash
-      #   run: |
-      #     set -euxo pipefail
-      #     mkdir -p "${PORT_DIR}/modules"
-      #     rsync -a --delete --include='*/' --include='*.py' --exclude='*' \
-      #       "${GITHUB_WORKSPACE}/" "${PORT_DIR}/modules/"
+          cat > my_manifest.py <<PY
+          include(r"${MPY_PORT_MANIFEST}")
+          # Freeze your repo (main.py, boot.py etc fully baked in)
+          freeze(r"${REPO_ROOT}", opt=3)
+          # Add the version module we just wrote
+          module("pb_version.py", open(r"${REPO_ROOT}/pb_version.py", "r").read())
+          PY
 
       - name: Build UF2 (RPI_PICO2_W)
         working-directory: ${{ env.PORT_DIR }}
         shell: bash
-        env:
-          # Ensure the build uses the modern cmake we installed
-          PATH: ${{ env.HOME }}/.local/bin:${{ env.PATH }}
         run: |
           set -euxo pipefail
+
+          # Ensure toolchain bits are present (defensive)
+          command -v make || (apt-get update && apt-get install -y make build-essential)
+
+          # Pull remaining submodules micropython/rp2 wants (btstack, mbedtls, lwip, etc.)
           make submodules
+
+          # Clean previous build dir if any
           make clean
-          # Build with frozen manifest; switch to RPI_PICO_W for RP2040
-          make BOARD=RPI_PICO2_W \
-               FROZEN_MANIFEST="${GITHUB_WORKSPACE}/my_manifest.py" \
-               -j"$(nproc)"
+
+          # Use newer CMake from PyPI; avoid building picotool from source surprises
+          # Micropython’s build will pick up the pip cmake automatically.
+          make BOARD=RPI_PICO2_W FROZEN_MANIFEST="$GITHUB_WORKSPACE/my_manifest.py" -j"$(nproc)"
 
       - name: Collect artifact (picobridge_{version}.uf2)
         shell: bash
