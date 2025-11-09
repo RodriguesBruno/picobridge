@@ -99,3 +99,18 @@ jobs:
           name: picobridge_${{ steps.ver.outputs.version }}
           path: out/picobridge_*.uf2
           if-no-files-found: error
+
+      - name: Collect artifact (picobridge_{version}.uf2)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p out
+          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${{ steps.ver.outputs.version }}.uf2"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: out/picobridge_${{ steps.ver.outputs.version }}.uf2
