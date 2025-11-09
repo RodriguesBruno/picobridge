@@ -1,4 +1,4 @@
-name: Build UF2 (Pico 2 W) CI
+name: Build UF2 (Pico 2 W)
 
 on:
   push:
@@ -8,22 +8,32 @@ on:
 jobs:
   build:
     runs-on: self-hosted
+
     env:
       MPY_DIR: micropython
       PORT_DIR: micropython/ports/rp2
-      VERSION: ${{ github.ref_name || github.sha }}
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+
+      - name: Compute VERSION
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          fi
+          echo "Version is: ${GITHUB_REF_TYPE:-branch}/${GITHUB_REF_NAME:-sha} -> ${VERSION}"
 
       - name: Toolchain sanity
         run: |
-          python3 --version || true
-          arm-none-eabi-gcc --version || true
+          which cmake || true
           cmake --version || true
-          make --version || true
+          arm-none-eabi-gcc --version || true
 
       - name: Clone MicroPython
         run: |
@@ -35,14 +45,17 @@ jobs:
         run: make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
 
       - name: Create frozen manifest
+        shell: bash
         run: |
-          cat > my_manifest.py << PY
-          include("$(PORT_DIR)/boards/manifest.py")
-          freeze("$(GITHUB_WORKSPACE)", opt=3)
-          module("pb_version.py", "__version__ = '${VERSION}'\n")
+          # We want $(PORT_DIR) to remain literal in the file (evaluated by MicroPython),
+          # so we escape the $ for the shell. We DO expand $GITHUB_WORKSPACE and $VERSION here.
+          cat > my_manifest.py <<PY
+          include("\$(PORT_DIR)/boards/manifest.py")
+          freeze("${GITHUB_WORKSPACE}", opt=3)
+          module("pb_version.py", "__version__ = '${VERSION}\\n'")
           PY
 
-      - name: Build UF2 (RPI_PICO2_W)
+      - name: Build UF2 for RPI_PICO2_W
         working-directory: ${{ env.PORT_DIR }}
         run: |
           make submodules
@@ -52,12 +65,11 @@ jobs:
       - name: Collect artifact
         run: |
           mkdir -p out
-          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" \
-             "out/picobridge_${{ env.VERSION }}.uf2"
+          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${{ env.VERSION }}.uf2"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: picobridge-${{ env.VERSION }}
+          name: picobridge_${{ env.VERSION }}
           path: out/picobridge_${{ env.VERSION }}.uf2
           if-no-files-found: error
