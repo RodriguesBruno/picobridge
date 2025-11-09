@@ -20,7 +20,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Make a pretty version for filenames (tag v1.2.3 -> 1.2.3 else short SHA)
       - name: Compute version
         id: ver
         shell: bash
@@ -33,7 +32,7 @@ jobs:
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "VERSION=$VER" >> "$GITHUB_ENV"
 
-      - name: Install build deps (toolchain) + pip cmake
+      - name: Install toolchain and CMake
         shell: bash
         run: |
           set -euxo pipefail
@@ -43,20 +42,16 @@ jobs:
             build-essential git python3 python3-pip \
             gcc-arm-none-eabi libnewlib-arm-none-eabi
           python3 -m pip install --upgrade pip
-          # Use cmake from PyPI (avoids Kitware apt repo & GPG keys)
-          python3 -m pip install cmake
-          # Optional but speeds things up
+          # Pin to older cmake to avoid mbedtls CMake version issues
+          python3 -m pip install cmake==3.25
           python3 -m pip install ninja
-          command -v make
 
       - name: Clone MicroPython + submodules
         shell: bash
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/micropython/micropython.git "$MPY_DIR"
-          # Initialize required top-level submodules
           git -C "$MPY_DIR" submodule update --init lib/pico-sdk lib/tinyusb lib/micropython-lib lib/mbedtls
-          # Make sure pico-sdk's nested submodules (cyw43-driver, lwIP, btstack, etc.) are present
           git -C "$MPY_DIR/lib/pico-sdk" submodule update --init --recursive
 
       - name: Build mpy-cross
@@ -69,21 +64,17 @@ jobs:
           set -euxo pipefail
           echo "__version__ = '${VERSION}'" > pb_version.py
 
-          # Use absolute paths in the manifest so CMake/Make can find them
-          cat > my_manifest.py <<PY
+          cat > my_manifest.py <<EOF
           include("${PORT_DIR}/boards/manifest.py")
-          # Freeze your whole repo (adjust to a subfolder if desired)
           freeze("${GITHUB_WORKSPACE}", opt=3)
-          # Include the generated version module
           module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
-          PY
+          EOF
 
       - name: Build UF2 (RPI_PICO2_W)
         working-directory: ${{ env.PORT_DIR }}
         shell: bash
         run: |
           set -euxo pipefail
-          # Ensure rp2 port submodules (safe to run even if already inited)
           make BOARD=RPI_PICO2_W submodules
           make clean
           make BOARD=RPI_PICO2_W FROZEN_MANIFEST="${GITHUB_WORKSPACE}/my_manifest.py" -j"$(nproc)"
