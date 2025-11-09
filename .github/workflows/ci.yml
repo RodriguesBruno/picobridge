@@ -87,7 +87,7 @@ jobs:
           # Update/verify submodules for this port (harmless if already done)
           make submodules
           make clean
-          make BOARD=RPI PICO 2 W FROZEN_MANIFEST="${GITHUB_WORKSPACE}/my_manifest.py" -j"$(nproc)"
+          make BOARD=RPI_PICO2_W FROZEN_MANIFEST="${GITHUB_WORKSPACE}/my_manifest.py" -j"$(nproc)"
 
       - name: Collect artifact (picobridge_{version}.uf2)
         shell: bash
