@@ -72,12 +72,12 @@ jobs:
 
           # Write absolute paths into the manifest so the builder can find them.
           cat > my_manifest.py <<PY
-include("${PORT_DIR}/boards/manifest.py")
-# Freeze the entire repo (adjust to a subfolder if you prefer)
-freeze("${GITHUB_WORKSPACE}", opt=3)
-# Add the generated version module
-module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
-PY
+          include("${PORT_DIR}/boards/manifest.py")
+          # Freeze the entire repo (adjust to a subfolder if you prefer)
+          freeze("${GITHUB_WORKSPACE}", opt=3)
+          # Add the generated version module
+          module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
+          PY
 
       - name: Build UF2 (RPI_PICO2_W)
         working-directory: ${{ env.PORT_DIR }}
