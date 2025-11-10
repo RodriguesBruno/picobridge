@@ -1,25 +1,23 @@
 #!/bin/bash
 set -e
 
-# Adjust this if your micropython folder is elsewhere
 MICROPYTHON_DIR="$HOME/micropython"
+PICOBRIDGE_DIR="$HOME/picobridge"
 
-echo "🔧 Building MicroPython firmware from $MICROPYTHON_DIR"
+# Extract version from frozen_modules/pb_version.py
+VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/frozen_modules/pb_version.py" | cut -d'"' -f2)
+
+echo "📦 Building PicoBridge version $VERSION"
 
 cd "$MICROPYTHON_DIR/ports/rp2"
-
-# Clean previous build
 rm -rf build-RPI_PICO2_W
 
-# Set platform
 export PICO_PLATFORM=rp2040
 
-# Build
 make BOARD=RPI_PICO2_W \
-     FROZEN_MANIFEST=$HOME/picobridge/my_manifest.py \
+     FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
      -j$(nproc)
 
-# Copy output
-cp build-RPI_PICO2_W/firmware.uf2 "$HOME/picobridge/picobridge_1.1.uf2"
+cp build-RPI_PICO2_W/firmware.uf2 "$PICOBRIDGE_DIR/picobridge_${VERSION}.uf2"
 
-echo "✅ Build complete. UF2 saved to picobridge_1.1.uf2"
+echo "✅ Done: $PICOBRIDGE_DIR/picobridge_${VERSION}.uf2"
