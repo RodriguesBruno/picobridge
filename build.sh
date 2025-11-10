@@ -1,25 +1,23 @@
 #!/bin/bash
 set -e
 
-# Use container path if it exists, otherwise use current host-relative path
-if [ -d /workspace/micropython ]; then
-    cd /workspace/micropython
-else
-    cd "$(dirname "$0")/micropython"
-fi
+MICROPYTHON_DIR="$HOME/micropython"
+PICOBRIDGE_DIR="$HOME/picobridge"
 
-# Update submodules just in case
-git submodule update --init --recursive
+# Extract version from frozen_modules/pb_version.py
+VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/frozen_modules/pb_version.py" | cut -d'"' -f2)
 
-# Clean old build
-rm -rf ports/rp2/build-RPI_PICO2_W
+echo "📦 Building PicoBridge version $VERSION"
 
-# Build
-make -C ports/rp2 \
-    BOARD=RPI_PICO2_W \
-    FROZEN_MANIFEST=/workspace/picobridge/my_manifest.py \
-    -j$(nproc)
+cd "$MICROPYTHON_DIR/ports/rp2"
+rm -rf build-RPI_PICO2_W
 
-# Resulting UF2 file:
-echo "Built firmware:"
-ls ports/rp2/build-RPI_PICO2_W/firmware.uf2
+export PICO_PLATFORM=rp2040
+
+make BOARD=RPI_PICO2_W \
+     FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
+     -j$(nproc)
+
+cp build-RPI_PICO2_W/firmware.uf2 "$PICOBRIDGE_DIR/picobridge_${VERSION}.uf2"
+
+echo "✅ Done: $PICOBRIDGE_DIR/picobridge_${VERSION}.uf2"
