@@ -1,25 +1,25 @@
 #!/bin/bash
 set -e
 
-# Use container path if it exists, otherwise use current host-relative path
-if [ -d /workspace/micropython ]; then
-    cd /workspace/micropython
-else
-    cd "$(dirname "$0")/micropython"
-fi
+# Adjust this if your micropython folder is elsewhere
+MICROPYTHON_DIR="$HOME/micropython"
 
-# Update submodules just in case
-git submodule update --init --recursive
+echo "🔧 Building MicroPython firmware from $MICROPYTHON_DIR"
 
-# Clean old build
-rm -rf ports/rp2/build-RPI_PICO2_W
+cd "$MICROPYTHON_DIR/ports/rp2"
+
+# Clean previous build
+rm -rf build-RPI_PICO2_W
+
+# Set platform
+export PICO_PLATFORM=rp2040
 
 # Build
-make -C ports/rp2 \
-    BOARD=RPI_PICO2_W \
-    FROZEN_MANIFEST=/workspace/picobridge/my_manifest.py \
-    -j$(nproc)
+make BOARD=RPI_PICO2_W \
+     FROZEN_MANIFEST=$HOME/picobridge/my_manifest.py \
+     -j$(nproc)
 
-# Resulting UF2 file:
-echo "Built firmware:"
-ls ports/rp2/build-RPI_PICO2_W/firmware.uf2
+# Copy output
+cp build-RPI_PICO2_W/firmware.uf2 "$HOME/picobridge/picobridge_1.1.uf2"
+
+echo "✅ Build complete. UF2 saved to picobridge_1.1.uf2"
