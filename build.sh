@@ -1,7 +1,12 @@
 #!/bin/bash
 set -e
 
-cd /workspace/micropython
+# Use container path if it exists, otherwise use current host-relative path
+if [ -d /workspace/micropython ]; then
+    cd /workspace/micropython
+else
+    cd "$(dirname "$0")/micropython"
+fi
 
 # Update submodules just in case
 git submodule update --init --recursive
