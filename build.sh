@@ -15,7 +15,10 @@ VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/src/pb_version.py" | cut -d'"' -f2
 echo "📦 Building PicoBridge $VERSION"
 
 cd "$MICROPYTHON_DIR/ports/rp2"
-rm -rf build-RPI_PICO2_W
+
+rm -rf "$MICROPYTHON_DIR/ports/rp2/build-RPI_PICO2_W"
+rm -rf "$MICROPYTHON_DIR/ports/rp2/CMakeFiles"
+rm -f "$MICROPYTHON_DIR/ports/rp2/CMakeCache.txt"
 
 make V=1 VERBOSE=1 BOARD=RPI_PICO2_W \
      FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
