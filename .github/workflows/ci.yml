@@ -18,7 +18,7 @@ jobs:
       - name: Run build.sh
         run: ./build.sh
 
-      - name: Upload UF2 to release (optional)
+      - name: Upload UF2 to release
         uses: softprops/action-gh-release@v1
         with:
           files: picobridge_*.uf2
