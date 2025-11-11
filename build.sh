@@ -1,8 +1,6 @@
 #!/bin/bash
 set -ex
 
-export VERBOSE=1
-
 MICROPYTHON_DIR="$PWD/micropython"
 PICOBRIDGE_DIR="$PWD"
 
