@@ -1,116 +1,25 @@
-name: Build UF2 (Pico 2 W)
+name: Build PicoBridge UF2
 
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: self-hosted
-
-    env:
-      MPY_DIR: micropython
-      PORT_DIR: micropython/ports/rp2
-
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Run build.sh
+        run: |
+          cd /picobridge
+          ./build.sh
+
+      - name: Upload UF2 to release (optional)
+        uses: softprops/action-gh-release@v1
         with:
-          fetch-depth: 0
-
-      - name: Compute version
-        id: ver
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" =~ ^v ]]; then
-            VER="${GITHUB_REF_NAME#v}"
-          else
-            VER="$(git rev-parse --short=8 HEAD)"
-          fi
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "VERSION=$VER" >> "$GITHUB_ENV"
-
-      - name: Install toolchain and CMake
-        shell: bash
-        run: |
-          set -euxo pipefail
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential git python3 python3-pip \
-            gcc-arm-none-eabi libnewlib-arm-none-eabi
-          python3 -m pip install --upgrade pip
-          # Pin to older cmake to avoid mbedtls CMake version issues
-          python3 -m pip install cmake==3.25
-          python3 -m pip install ninja
-
-      - name: Clone MicroPython + submodules
-        shell: bash
-        run: |
-          set -euxo pipefail
-          git clone --depth 1 https://github.com/micropython/micropython.git "$MPY_DIR"
-          git -C "$MPY_DIR" submodule update --init lib/pico-sdk lib/tinyusb lib/micropython-lib lib/mbedtls
-          git -C "$MPY_DIR/lib/pico-sdk" submodule update --init --recursive
-
-      - name: Build mpy-cross
-        shell: bash
-        run: make -C "$MPY_DIR/mpy-cross" -j"$(nproc)"
-
-      - name: Create manifest and version module
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          # Generate pb_version.py file
-          echo "__version__ = '${VERSION}'" > pb_version.py
-
-          # Make sure it's saved in a path the manifest can stat
-          mkdir -p frozen_modules
-          mv pb_version.py frozen_modules/
-
-          # Write the manifest
-          cat > my_manifest.py <<EOF
-          include("micropython/ports/rp2/boards/manifest.py")
-          freeze("src", opt=3)
-          module("pb_version.py", open("${GITHUB_WORKSPACE}/pb_version.py").read())
-          EOF
-
-      - name: Build UF2 (RPI_PICO2_W)
-        working-directory: ${{ env.PORT_DIR }}
-        shell: bash
-        run: |
-          set -euxo pipefail
-          make BOARD=RPI_PICO2_W submodules
-          make clean
-          make BOARD=RPI_PICO2_W FROZEN_MANIFEST="${GITHUB_WORKSPACE}/my_manifest.py" -j"$(nproc)"
-
-      - name: Collect artifact (picobridge_{version}.uf2)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p out
-          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${{ steps.ver.outputs.version }}.uf2"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: picobridge_${{ steps.ver.outputs.version }}
-          path: out/picobridge_*.uf2
-          if-no-files-found: error
-
-      - name: Collect artifact (picobridge_{version}.uf2)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p out
-          cp "$PORT_DIR/build-RPI_PICO2_W/firmware.uf2" "out/picobridge_${{ steps.ver.outputs.version }}.uf2"
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          files: out/picobridge_${{ steps.ver.outputs.version }}.uf2
+          files: picobridge_*.uf2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
