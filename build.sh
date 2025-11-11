@@ -17,7 +17,7 @@ echo "📦 Building PicoBridge $VERSION"
 cd "$MICROPYTHON_DIR/ports/rp2"
 rm -rf build-RPI_PICO2_W
 
-make V1 VERBOSE=1 BOARD=RPI_PICO2_W \
+make V=1 VERBOSE=1 BOARD=RPI_PICO2_W \
      FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
      -j$(nproc)
 
