@@ -1,10 +1,19 @@
 #!/bin/bash
 set -e
 
-# Use current directory as base
 BASE_DIR="$(pwd)"
 MICROPYTHON_DIR="$BASE_DIR/micropython"
 PICOBRIDGE_DIR="$BASE_DIR"
+
+# Auto-clone MicroPython if not present
+if [ ! -d "$MICROPYTHON_DIR" ]; then
+  echo "📥 Cloning MicroPython..."
+  git clone --depth=1 --recurse-submodules https://github.com/micropython/micropython.git "$MICROPYTHON_DIR"
+  cd "$MICROPYTHON_DIR"
+  git submodule update --init --recursive
+else
+  echo "✅ MicroPython already present."
+fi
 
 # Extract version
 VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/frozen_modules/pb_version.py" | cut -d'"' -f2)
