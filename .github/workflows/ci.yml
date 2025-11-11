@@ -26,6 +26,14 @@ jobs:
       - name: Make build.sh executable
         run: chmod +x build.sh
 
+      - name: Install CMake 3.25.2
+        run: |
+          wget https://github.com/Kitware/CMake/releases/download/v3.25.2/cmake-3.25.2-linux-x86_64.sh
+          chmod +x cmake-3.25.2-linux-x86_64.sh
+          sudo ./cmake-3.25.2-linux-x86_64.sh --skip-license --prefix=/usr/local
+
+      - run: cmake --version
+
       - name: Run build.sh
         run: ./build.sh
 
