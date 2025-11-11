@@ -11,13 +11,13 @@ if [ ! -d "$MICROPYTHON_DIR" ]; then
 fi
 
 # Get version
-VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/frozen_modules/pb_version.py" | cut -d'"' -f2)
+VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/src/pb_version.py" | cut -d'"' -f2)
 echo "📦 Building PicoBridge version $VERSION"
 
 cd "$MICROPYTHON_DIR/ports/rp2"
 rm -rf build-RPI_PICO2_W
 
-make BOARD=RPI_PICO2_W \
+make V=1 BOARD=RPI_PICO2_W \
      FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
      -j$(nproc)
 
