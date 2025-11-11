@@ -12,9 +12,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Make build.sh executable
+        run: chmod +x build.sh
+
       - name: Run build.sh
         run: ./build.sh
-        working-directory: ${{ github.workspace }}
 
       - name: Upload UF2 to release (optional)
         uses: softprops/action-gh-release@v1
