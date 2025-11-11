@@ -1,10 +1,12 @@
 #!/bin/bash
 set -e
 
-MICROPYTHON_DIR="$HOME/micropython"
-PICOBRIDGE_DIR="$HOME/picobridge"
+# Use current directory as base
+BASE_DIR="$(pwd)"
+MICROPYTHON_DIR="$BASE_DIR/micropython"
+PICOBRIDGE_DIR="$BASE_DIR"
 
-# Extract version from frozen_modules/pb_version.py
+# Extract version
 VERSION=$(grep '__version__' "$PICOBRIDGE_DIR/frozen_modules/pb_version.py" | cut -d'"' -f2)
 
 echo "📦 Building PicoBridge version $VERSION"
