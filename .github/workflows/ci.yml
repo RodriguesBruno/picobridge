@@ -41,12 +41,18 @@ jobs:
       - name: Run build.sh
         run: ./build.sh
 
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep '__version__' src/pb_version.py | cut -d'"' -f2)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"  
+
       # ✅ Upload to the "latest" release every time
       - name: Upload UF2 to GitHub Release (latest)
         uses: softprops/action-gh-release@v1
         with:
           tag_name: latest
-          name: Latest Development Build
+          name: Picobridge v${{ steps.version.outputs.version }}
           files: picobridge_*.uf2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
