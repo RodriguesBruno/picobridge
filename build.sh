@@ -32,7 +32,7 @@ export LDFLAGS=""
 unset CPPFLAGS
 unset MAKEFLAGS
 
-make V=1 VERBOSE=1 BOARD=RPI_PICO2_W \
+env -i PATH="$PATH" make V=1 VERBOSE=1 BOARD=RPI_PICO2_W \
      FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
      -j$(nproc)
 
