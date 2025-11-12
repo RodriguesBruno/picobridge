@@ -20,6 +20,10 @@ rm -rf "$MICROPYTHON_DIR/ports/rp2/build-RPI_PICO2_W"
 rm -rf "$MICROPYTHON_DIR/ports/rp2/CMakeFiles"
 rm -f "$MICROPYTHON_DIR/ports/rp2/CMakeCache.txt"
 
+unset LDFLAGS
+echo "🧹 Unsetting LDFLAGS to prevent linker issues"
+unset LDFLAGS
+
 make V=1 VERBOSE=1 BOARD=RPI_PICO2_W \
      FROZEN_MANIFEST=$PICOBRIDGE_DIR/my_manifest.py \
      -j$(nproc)
