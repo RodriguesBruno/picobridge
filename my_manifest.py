@@ -16,5 +16,5 @@ freeze("templates")
 freeze("static")
 
 # Freeze all Python files in top-level project folder
-freeze(".", ("main.py", "config.json"))
+freeze(".", ("main.py", "config.json",))
 
