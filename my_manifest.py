@@ -1,13 +1,13 @@
 include("$(MPY_DIR)/ports/rp2/boards/manifest.py")
 
 # Freeze an entire folder of .py files
-freeze("src", opt=3)
+freeze("src")
 
 # Freeze Microdot framework
-freeze("microdot", opt=3)
+freeze("microdot")
 
 # Freeze utemplate (template engine)
-freeze("utemplate", opt=3)
+freeze("utemplate")
 
 # Freeze your templates (HTML files become frozen strings)
 freeze("templates")
