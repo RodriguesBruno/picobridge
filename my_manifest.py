@@ -1,20 +1,18 @@
 include("$(MPY_DIR)/ports/rp2/boards/manifest.py")
 
-# Freeze an entire folder of .py files
-freeze("src")
+# Python modules
+freeze(".", ("main.py",))
 
-# Freeze Microdot framework
+# Static JSON
+freeze_file("config.json")
+
+# Your Python packages
+freeze("src")
 freeze("microdot")
 
-# Freeze utemplate (template engine)
-freeze("utemplate")
+# Template engine runtime only
+freeze("utemplate", ("template.py", "utemplate.py", "helpers.py"))
 
-# Freeze your templates (HTML files become frozen strings)
-freeze("templates")
-
-# Freeze static files (JS, CSS, etc.)
-freeze("static")
-
-# Freeze all Python files in top-level project folder
-freeze(".", ("main.py", "config.json",))
-
+# Freeze assets only
+freeze_dir("templates")
+freeze_dir("static")
