@@ -1,4 +1,4 @@
-from utemplate import recompile
+from libraries.utemplate import recompile
 
 _loader = None
 

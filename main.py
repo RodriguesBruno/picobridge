@@ -1,9 +1,8 @@
-import sys
 import asyncio
 
-from microdot.microdot import Microdot, Response, send_file
-from microdot.utemplate import Template
-from microdot.websocket import with_websocket
+from libraries.microdot.microdot import Microdot, Response, send_file
+from libraries.microdot.utemplate import Template
+from libraries.microdot.websocket import with_websocket
 
 from src.file_handlers import read_file_as_json
 from src.logger import Logger
