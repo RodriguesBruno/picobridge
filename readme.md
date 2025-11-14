@@ -61,7 +61,7 @@ All settings can be configured via the web UI, including:
 
 
 ---
-## 🧩 Web Framework — Microdot
+## 🧩 Web Framework — Microdot (Libraries)
 
 PicoBridge uses Microdot
 , a lightweight web framework created by Miguel Grinberg.
