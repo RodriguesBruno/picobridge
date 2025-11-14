@@ -29,7 +29,7 @@ It runs on the Raspberry Pi Pico 2 W and provides UART access via a browser-base
 
 - git clone https://github.com/rodriguesbruno/picobridge.git
 
-2. **Upload the project folder contents to the Pico using any upload tool**
+2. **Upload the project folder contents to the Pico using any upload tool / IDE**
 
 ---
 
@@ -49,7 +49,7 @@ To access the interface:
 
 ---
 
-### Settings
+## 🛠 Settings
 
 All settings can be configured via the web UI, including:
 
@@ -58,6 +58,19 @@ All settings can be configured via the web UI, including:
 - Device label and location
 - Wi-Fi mode (Ad-Hoc or Infrastructure)
 - SSID & password for Infrastructure mode
+
+
+---
+## 🧩 Web Framework — Microdot
+
+PicoBridge uses Microdot
+, a lightweight web framework created by Miguel Grinberg.
+Microdot provides Flask-like routing and WebSocket support optimized for MicroPython devices such as the Raspberry Pi Pico W.
+
+ - https://github.com/miguelgrinberg/microdot
+
+
+Huge thanks to Miguel Grinberg for creating and maintaining this excellent framework.
 
 ---
 
