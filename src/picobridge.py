@@ -132,8 +132,6 @@ class PicoBridge:
             must_save_config.append(True)
 
         wlan_settings: dict = new_settings.get('wlan')
-        print(wlan_settings)
-        print(self._config['picobridge']['wlan'])
 
         if self._config.get('picobridge').get('wlan') != wlan_settings:
             self._config['picobridge']['wlan'] = wlan_settings
@@ -145,7 +143,7 @@ class PicoBridge:
             self.save_config()
 
         if must_restart:
-            sleep_time: int = 1
+            sleep_time: int = 5
             print(f"PicoBridge Network Settings changed. Restarting in {sleep_time}s")
             await asyncio.sleep(sleep_time)
             reset()
