@@ -538,3 +538,16 @@ input[type=checkbox] { display: none; }
 .bottom {
   margin-top: 10px
 }
+
+/* ===== Fix modal overflow on small screens ===== */
+.modal-content {
+  max-height: 90vh;       /* keep it inside the viewport */
+  overflow-y: auto;       /* enable scrolling if needed */
+}
+
+@media (max-width: 600px) {
+  .modal-content {
+    width: 95vw;          /* fit smaller screens */
+    padding: 1rem;
+  }
+}

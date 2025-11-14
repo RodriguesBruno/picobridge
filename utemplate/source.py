@@ -1,5 +1,5 @@
 # (c) 2014-2019 Paul Sokolovsky. MIT license.
-from lib.utemplate import compiled
+from . import compiled
 
 
 class Compiler:

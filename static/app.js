@@ -250,10 +250,13 @@ document.addEventListener("DOMContentLoaded", function () {
       wlan
     };
 
+    console.log("New Settings: ", data)
+
     fetch('/api/v1/pb/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
+
     }).then(res => {
       if (res.ok) {
         modal.classList.add("hidden");
