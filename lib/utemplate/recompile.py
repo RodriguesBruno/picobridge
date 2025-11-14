@@ -1,9 +1,11 @@
 # (c) 2014-2020 Paul Sokolovsky. MIT license.
 try:
     from uos import stat, remove
+
 except:
     from os import stat, remove
-from . import source
+
+from lib.utemplate import source
 
 
 class Loader(source.Loader):
