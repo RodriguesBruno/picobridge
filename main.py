@@ -1,8 +1,9 @@
-import uasyncio as asyncio
+import sys
+import asyncio
 
-from lib.microdot.microdot import Microdot, Response, send_file
-from lib.microdot.utemplate import Template
-from lib.microdot.websocket import with_websocket
+from microdot.microdot import Microdot, Response, send_file
+from microdot.utemplate import Template
+from microdot.websocket import with_websocket
 
 from src.file_handlers import read_file_as_json
 from src.logger import Logger
@@ -66,12 +67,6 @@ async def static(req, path):
 
     return send_file(STATIC_FOLDER + path)
 
-
-@app.route('/status')
-async def status(request):
-    return 'Pico W UART bridge is running.'
-
-
 @app.get('/')
 async def index(req):
     return Template(template='index.html').render(version=pico_bridge.get_version())
@@ -115,7 +110,7 @@ async def get_pb_settings(req):
 @app.post('/api/v1/pb/settings')
 async def update_settings(req):
     new_settings: dict = req.json
-    pico_bridge.update_settings(new_settings=new_settings)
+    await pico_bridge.update_settings(new_settings=new_settings)
 
     return {'message': 'UART settings updated'}
 

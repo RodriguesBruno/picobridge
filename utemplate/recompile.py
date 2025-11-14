@@ -4,8 +4,7 @@ try:
 
 except:
     from os import stat, remove
-
-from lib.utemplate import source
+from . import  source
 
 
 class Loader(source.Loader):

@@ -1,7 +1,7 @@
 import json
 import time
-import uasyncio as asyncio
-from machine import UART, Pin
+import asyncio
+from machine import UART, Pin, reset
 from network import WLAN
 
 from src.file_handlers import read_file_as_json, write_file_as_json
@@ -82,6 +82,7 @@ class PicoBridge:
 
         self._crlf_to_uart: bool = True
         self._uart_to_crlf: bool = False
+        print(f"PicoBridge v{self._version}")
 
     def start_uart(self) -> None:
         uart_conf = self._config.get('picobridge').get('uart')
@@ -100,8 +101,9 @@ class PicoBridge:
             timeout_char=20
         )
 
-    def update_settings(self, new_settings: dict) -> None:
+    async def update_settings(self, new_settings: dict) -> None:
         must_save_config: list[bool] = []
+        must_restart: bool = False
 
         plugged_device = new_settings.get('plugged_device')
         if self._plugged_device != plugged_device:
@@ -130,12 +132,24 @@ class PicoBridge:
             must_save_config.append(True)
 
         wlan_settings: dict = new_settings.get('wlan')
+        print(wlan_settings)
+        print(self._config['picobridge']['wlan'])
 
         if self._config.get('picobridge').get('wlan') != wlan_settings:
+            self._config['picobridge']['wlan'] = wlan_settings
+
             must_save_config.append(True)
+            must_restart = True
 
         if any(must_save_config):
             self.save_config()
+
+        if must_restart:
+            sleep_time: int = 1
+            print(f"PicoBridge Network Settings changed. Restarting in {sleep_time}s")
+            await asyncio.sleep(sleep_time)
+            reset()
+
 
     def get_settings(self) -> dict:
         settings: dict = self._config.get('picobridge').get('uart').get('settings').copy()
@@ -160,10 +174,12 @@ class PicoBridge:
     def start_network(self) -> None:
         if self._is_ad_hoc:
             wlan_conf = self._config.get('picobridge').get('wlan').get('ad_hoc')
+            print("Starting Network mode: Access Point")
             self._wlan: WLAN = start_ap(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
         else:
             try:
                 wlan_conf = self._config.get('picobridge').get('wlan').get('infrastructure')
+                print("Starting Network mode: Infrastructure")
                 self._wlan = wifi_connect(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
 
             except Exception:
