@@ -29,7 +29,7 @@ It runs on the Raspberry Pi Pico 2 W and provides UART access via a browser-base
 
 - git clone https://github.com/rodriguesbruno/picobridge.git
 
-2. **Upload the project folder contents to the Pico using any upload tool**
+2. **Upload the project folder contents to the Pico using any upload tool / IDE**
 
 ---
 
@@ -49,7 +49,7 @@ To access the interface:
 
 ---
 
-### Settings
+## 🛠 Settings
 
 All settings can be configured via the web UI, including:
 
@@ -61,7 +61,7 @@ All settings can be configured via the web UI, including:
 
 
 ---
-🧩 Web Framework — Microdot
+## 🧩 Web Framework — Microdot
 
 PicoBridge uses Microdot
 , a lightweight web framework created by Miguel Grinberg.
