@@ -1,18 +1,18 @@
-include("$(MPY_DIR)/ports/rp2/boards/manifest.py")
+# my_manifest.py
+# Include default MicroPython RP2 manifest
+include("$(BOARD_DIR)/manifest.py")
 
-# Python modules
-freeze(".", ("main.py",))
+# Freeze main entry point
+module("main.py", base_path="/home/maso/picobridge_build/picobridge")
 
-# Static JSON
-freeze_file("config.json")
+# Freeze Python application code in src/
+package("src", base_path="/home/maso/picobridge_build/picobridge")
 
-# Your Python packages
-freeze("src")
-freeze("microdot")
+# Freeze Microdot framework
+package("microdot", base_path="/home/maso/picobridge_build/picobridge/lib")
 
-# Template engine runtime only
-freeze("utemplate", ("template.py", "utemplate.py", "helpers.py"))
+# Freeze utemplate library
+package("utemplate", base_path="/home/maso/picobridge_build/picobridge/lib")
 
-# Freeze assets only
-freeze_dir("templates")
-freeze_dir("static")
+# Freeze config file as raw data
+freeze_file("/home/maso/picobridge_build/picobridge/config.json")
