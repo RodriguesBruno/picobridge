@@ -45,6 +45,12 @@ li { list-style: none; }
   color: #fff;
 }
 
+.logo-img {
+  height: 280px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
 .menu {
   display: flex;
   gap: 1rem;
