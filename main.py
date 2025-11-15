@@ -18,11 +18,11 @@ app: Microdot = Microdot()
 Response.default_content_type = 'text/html'
 STATIC_FOLDER: str = "static/"
 
-logger: Logger = Logger("PicoBridge")
+logger: Logger = Logger("Main")
 
-websocket_manager: WebsocketManager = WebsocketManager(logger=logger)
+websocket_manager: WebsocketManager = WebsocketManager()
 
-pico_bridge: PicoBridge = PicoBridge()
+pico_bridge: PicoBridge = PicoBridge(ws_manager=websocket_manager)
 
 
 async def handle_client(reader, writer) -> None:
@@ -93,7 +93,7 @@ async def ws_handler(request, ws):
     
     logger.info(f"WebSocket client connected from {ip}")
 
-    pico_bridge.register_websocket(ws)
+    websocket_manager.register(ws)
 
     try:
         while True:
@@ -108,16 +108,16 @@ async def ws_handler(request, ws):
 
             try:
                 await pico_bridge.handle_websocket_input(data)
+
             except Exception as e:
                 logger.info(f"Error handling websocket input: {e}")
-                # continue loop; do not crash the websocket handler
                 continue
     
     except Exception as e:
         logger.info(f"Unexpected websocket handler error: {e}")
 
     finally:
-        pico_bridge.unregister_websocket(ws)
+        websocket_manager.unregister(ws)
         logger.info("WebSocket client disconnected")
 
 
