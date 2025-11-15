@@ -57,8 +57,8 @@ class PicoBridge:
         self._last_rx_ms = time.ticks_ms()
         self._idle_flush_ms: int = 150
 
-        self._WS_BATCH_TIME_MS: int = 60
-        self._ws_batch_deadline = time.ticks_add(time.ticks_ms(), self._WS_BATCH_TIME_MS)
+        # self._WS_BATCH_TIME_MS: int = 60
+        # self._ws_batch_deadline = time.ticks_add(time.ticks_ms(), self._WS_BATCH_TIME_MS)
 
         self._flush_tokens = ('Username:', 'Password:', 'login:', '--More--')
 
@@ -76,13 +76,15 @@ class PicoBridge:
         self._led: Pin = Pin("LED", Pin.OUT)
 
         # Init UART
-        self._uart = UART or None
+        self._uart = None
 
         self._system_monitor: SystemMonitor = SystemMonitor()
 
         self._crlf_to_uart: bool = True
         self._uart_to_crlf: bool = False
+
         print(f"PicoBridge v{self._version}")
+
 
     def start_uart(self) -> None:
         uart_conf = self._config.get('picobridge').get('uart')
@@ -197,16 +199,7 @@ class PicoBridge:
     def unregister_websocket(self, ws) -> None:
         if ws in self.websockets:
             self.websockets.remove(ws)
-
-    def broadcast_uart_activity(self) -> None:
-        data = json.dumps({'tx': self._tx_activity, 'rx': self._rx_activity})
-        for ws in self.websockets[:]:
-            try:
-                await ws.send(data)
-
-            except:
-                self.websockets.remove(ws)
-
+        
     def wake_uart(self) -> None:
         """Send a wake-up signal (RETURN) to UART to trigger login banner or prompt."""
         try:
