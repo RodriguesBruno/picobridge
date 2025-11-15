@@ -12,6 +12,7 @@ from src.telnet import telnet_negotiation
 from src.wlan import start_ap, wifi_connect
 from src.logger import Logger
 
+
 class PicoBridge:
     def __init__(self, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
         self._terminal_framer: TerminalFramer = TerminalFramer()
@@ -74,20 +75,20 @@ class PicoBridge:
         )
 
     async def update_settings(self, new_settings: dict) -> None:
-        must_save_config: list[bool] = []
+        must_save_config: bool = False
         must_restart: bool = False
 
         plugged_device = new_settings.get('plugged_device')
         if self._plugged_device != plugged_device:
             self._config['picobridge']['plugged_device'] = plugged_device
             self._plugged_device = plugged_device
-            must_save_config.append(True)
+            must_save_config = True
 
         location = new_settings.get('location')
         if self._location != location:
             self._config['picobridge']['location'] = location
             self._location = location
-            must_save_config.append(True)
+            must_save_config = True
 
         uart_settings: dict = {
             'baudrate': new_settings.get('baudrate'),
@@ -101,23 +102,24 @@ class PicoBridge:
 
             self.start_uart()
 
-            must_save_config.append(True)
+            must_save_config = True
 
         wlan_settings: dict = new_settings.get('wlan')
 
         if self._config.get('picobridge').get('wlan') != wlan_settings:
             self._config['picobridge']['wlan'] = wlan_settings
 
-            must_save_config.append(True)
+            must_save_config = True
             must_restart = True
 
-        if any(must_save_config):
+        if must_save_config:
             self.save_config()
 
         if must_restart:
             sleep_time: int = 5
             self._logger.info(f"PicoBridge Network Settings changed. Restarting in {sleep_time}s")
             await asyncio.sleep(sleep_time)
+
             reset()
 
 
@@ -213,7 +215,7 @@ class PicoBridge:
 
                     await self._ws_manager.broadcast_payloads(payloads)
 
-                await asyncio.sleep(0.005)
+                await asyncio.sleep(0)
 
     async def client_to_uart(self, reader, writer, stop_flag: list[bool]) -> None:
         try:
