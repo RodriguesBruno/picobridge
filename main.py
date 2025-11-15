@@ -6,6 +6,7 @@ from libraries.microdot.websocket import with_websocket
 
 from src.file_handlers import read_file_as_json
 from src.logger import Logger
+from src.websocket_manager import WebsocketManager
 from src.picobridge import PicoBridge
 from src.telnet import TELNET_INIT
 
@@ -17,7 +18,9 @@ app: Microdot = Microdot()
 Response.default_content_type = 'text/html'
 STATIC_FOLDER: str = "static/"
 
-logging: Logger = Logger("PicoBridge")
+logger: Logger = Logger("PicoBridge")
+
+websocket_manager: WebsocketManager = WebsocketManager(logger=logger)
 
 pico_bridge: PicoBridge = PicoBridge()
 
@@ -27,18 +30,22 @@ async def handle_client(reader, writer) -> None:
     pico_bridge.clients.append(writer)
 
     try:
-        peer_ip, _ = writer.get_extra_info('peername')
-        logging.info(f"Client connected from {peer_ip}")
+        peer = writer.get_extra_info('peername')
+        if peer:
+            peer_ip, _ = peer
+            logger.info(f"Client connected from {peer_ip}")
+        else:
+            logger.info("Client connected (peername not available)")
 
-    except:
-        logging.info("Client connected (IP unknown)")
+    except Exception as e:
+        logger.info(f"Client connected (IP unknown): {e}")
 
     try:
         writer.write(TELNET_INIT)
         await writer.drain()
 
-    except:
-        pass
+    except Exception as e:
+        logger.info(f"Error sending TELNET_INIT: {e}")
 
     pico_bridge.wake_uart()
 
@@ -51,17 +58,21 @@ async def handle_client(reader, writer) -> None:
 
         try:
             writer.close()
+            try:
+                await writer.wait_closed()
 
-        except:
-            pass
+            except Exception:
+                pass
 
-        logging.info("Client disconnected")
+        except Exception as e:
+            logger.info(f"Error closing writer: {e}")
+
+        logger.info("Client disconnected")
 
 
 @app.get('/static/<path:path>')
 async def static(req, path):
     if '..' in path:
-        # directory traversal is not allowed
         return 'Not found', 404
 
     return send_file(STATIC_FOLDER + path)
@@ -74,30 +85,40 @@ async def index(req):
 @app.route('/ws')
 @with_websocket
 async def ws_handler(request, ws):
-    ip, _ = request.client_addr
-    logging.info(f"WebSocket client connected from {ip}")
+    try:
+        ip, _ = request.client_addr
+
+    except Exception:
+        ip = 'unknown'
+    
+    logger.info(f"WebSocket client connected from {ip}")
 
     pico_bridge.register_websocket(ws)
 
     try:
         while True:
-            data = await ws.receive()
-            await pico_bridge.handle_websocket_input(data)
+            try:
+                data = await ws.receive()
+            except Exception as e:
+                logger.info(f"WebSocket receive error: {e}")
+                break
 
-    except:
-        pass
+            if data is None:
+                break
+
+            try:
+                await pico_bridge.handle_websocket_input(data)
+            except Exception as e:
+                logger.info(f"Error handling websocket input: {e}")
+                # continue loop; do not crash the websocket handler
+                continue
+    
+    except Exception as e:
+        logger.info(f"Unexpected websocket handler error: {e}")
 
     finally:
         pico_bridge.unregister_websocket(ws)
-        logging.info("WebSocket client disconnected")
-
-
-@app.route('/echo')
-@with_websocket
-async def echo(request, ws):
-    while True:
-        data = await ws.receive()
-        await ws.send(data)
+        logger.info("WebSocket client disconnected")
 
 
 @app.get('/api/v1/pb/settings')
@@ -111,31 +132,42 @@ async def update_settings(req):
     new_settings: dict = req.json
     await pico_bridge.update_settings(new_settings=new_settings)
 
-    return {'message': 'UART settings updated'}
+    return {'message': 'Settings updated'}
 
 
-@app.get('api/v1/pb/uart_to_crlf/enable')
+@app.get('/api/v1/pb/uart_to_crlf/enable')
 async def uart_to_crlf_enable(req):
     pico_bridge.enable_uart_to_crlf()
+    return {'message': 'uart_to_crlf enabled'}
 
 
-@app.get('api/v1/pb/uart_to_crlf/disable')
+@app.get('/api/v1/pb/uart_to_crlf/disable')
 async def uart_to_crlf_disable(req):
     pico_bridge.disable_uart_to_crlf()
+    return {'message': 'uart_to_crlf disabled'}
 
 
-@app.get('api/v1/pb/crlf_to_uart/enable')
+@app.get('/api/v1/pb/crlf_to_uart/enable')
 async def crlf_to_uart_enable(req):
     pico_bridge.enable_crlf_to_uart()
+    return {'message': 'crlf_to_uart enabled'}
 
 
-@app.get('api/v1/pb/crlf_to_uart/disable')
+@app.get('/api/v1/pb/crlf_to_uart/disable')
 async def crlf_to_uart_disable(req):
     pico_bridge.disable_crlf_to_uart()
+    return {'message': 'crlf_to_uart disabled'}
 
 
 async def start_microdot(ip: str) -> None:
-    await app.start_server(host=ip, port=config.get('picobridge').get('webservice').get('port'), debug=True)
+    port = config.get('picobridge', {}).get('webservice', {}).get('port', 8080)
+
+    try:
+        await app.start_server(host=ip, port=port, debug=True)
+
+    except Exception as e:
+        logger.info(f"Error starting microdot server on {ip}:{port} - {e}")
+        raise
 
 
 async def main() -> None:
@@ -155,7 +187,7 @@ async def main() -> None:
 
     srv = await asyncio.start_server(handle_client, ip, tcp_port)
 
-    logging.info(f"Listening on {ip}: {tcp_port}")
+    logger.info(f"Listening on {ip}: {tcp_port}")
 
     try:
         await asyncio.gather(start_microdot(ip=ip))
@@ -166,8 +198,8 @@ async def main() -> None:
         try:
             await srv.wait_closed()
 
-        except:
-            pass
+        except Exception as e:
+            logger.info(f"Error waiting for server close: {e}")
 
 
 if __name__ == "__main__":

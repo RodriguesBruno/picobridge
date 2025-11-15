@@ -1,0 +1,53 @@
+import json
+from typing import List, Any, Optional
+
+class WebsocketManager:
+    def __init__(self, logger: Optional[Any] = None):
+        self.websockets: List[Any] = []
+        self._logger = logger
+
+    def register(self, ws: Any) -> None:
+        if ws not in self.websockets:
+            self.websockets.append(ws)
+
+    def unregister(self, ws: Any) -> None:
+        try:
+            if ws in self.websockets:
+                self.websockets.remove(ws)
+
+        except Exception as e:
+            if self._logger:
+                self._logger.info(f"Error removing websocket: {e}")
+
+    async def _safe_send(self, ws: Any, payload: str) -> bool:
+        try:
+            await ws.send(payload)
+            return True
+        
+        except Exception as e:
+            if self._logger:
+                self._logger.info(f"Websocket send failed, removing ws: {e}")
+
+            try:
+                self.websockets.remove(ws)
+
+            except Exception:
+                pass
+
+            return False
+
+    async def broadcast_payloads(self, payloads: List[str]) -> None:
+        for ws in self.websockets[:]:
+            for p in payloads:
+                ok = await self._safe_send(ws, p)
+
+                if not ok:
+                    break 
+
+    async def broadcast_json(self, obj: Any) -> None:
+        s = json.dumps(obj)
+        for ws in self.websockets[:]:
+            await self._safe_send(ws, s)
+
+    async def broadcast_activity(self, tx: bool, rx: bool) -> None:
+        await self.broadcast_json({'tx': tx, 'rx': rx})
