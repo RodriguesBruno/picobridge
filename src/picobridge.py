@@ -18,7 +18,7 @@ class PicoBridge:
         self._ws_manager = ws_manager
         self._config_path: str = config_path
         self._config: dict = read_file_as_json(config_path)
-        self._logger: Logger = Logger("WebSocketManager")
+        self._logger: Logger = Logger("PicoBridge")
 
         # State
         self.clients = []
