@@ -1,5 +1,6 @@
 import time
 
+
 def apply_backspaces(s: str) -> str:
     out = []
     for ch in s:
@@ -32,10 +33,10 @@ class TerminalFramer:
         try:
             s = b.decode()
             self._utf8_tail = b''
+
             return s
 
         except Exception:
-            # Try stripping 1..3 tail bytes as incomplete sequence
             for keep in (1, 2, 3):
                 if len(b) > keep:
                     try:
@@ -44,7 +45,7 @@ class TerminalFramer:
                         return s
                     except Exception:
                         pass
-            # nothing decodes -> keep all bytes as tail
+
             self._utf8_tail = b
 
             return ''
@@ -60,6 +61,7 @@ class TerminalFramer:
 
         if first_idx == -1:
             return text, None, ''
+
         prefix = text[:first_idx]
         suffix = text[first_idx + len(first_tok):]
 
@@ -72,7 +74,6 @@ class TerminalFramer:
 
         self._line_accum += s
 
-        # emit complete newline-terminated lines
         while True:
             nl = self._line_accum.find('\n')
             if nl == -1:
@@ -81,7 +82,6 @@ class TerminalFramer:
             frames.append(line)
             self._line_accum = self._line_accum[nl + 1:]
 
-        # detect pager/prompt tokens in remaining partial and emit them immediately
         while True:
             if not self._line_accum:
                 break

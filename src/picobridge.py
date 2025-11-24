@@ -9,13 +9,15 @@ from src.terminal_framer import TerminalFramer
 from src.websocket_manager import WebsocketManager
 from src.system_monitor import SystemMonitor
 from src.telnet import telnet_negotiation
-from src.wlan import start_ap, wifi_connect
+from src.wlan import wlan_ap_mode, wlan_infra_mode
 from src.logger import Logger
 
 
 class PicoBridge:
     def __init__(self, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
         self._terminal_framer: TerminalFramer = TerminalFramer()
+        self._system_monitor: SystemMonitor = SystemMonitor()
+
         self._ws_manager = ws_manager
         self._config_path: str = config_path
         self._config: dict = read_file_as_json(config_path)
@@ -48,9 +50,6 @@ class PicoBridge:
 
         # Init UART
         self._uart = None
-
-        self._system_monitor: SystemMonitor = SystemMonitor()
-
         self._crlf_to_uart: bool = True
         self._uart_to_crlf: bool = False
 
@@ -147,12 +146,12 @@ class PicoBridge:
         if self._is_ad_hoc:
             wlan_conf = self._config.get('picobridge').get('wlan').get('ad_hoc')
             self._logger.info("Starting Network mode: Access Point")
-            self._wlan: WLAN = start_ap(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
+            self._wlan: WLAN = wlan_ap_mode(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
         else:
             try:
                 wlan_conf = self._config.get('picobridge').get('wlan').get('infrastructure')
                 self._logger.info("Starting Network mode: Infrastructure")
-                self._wlan = wifi_connect(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
+                self._wlan = wlan_infra_mode(ssid=wlan_conf.get('ssid'), password=wlan_conf.get('psk'))
 
             except Exception:
                 self._logger.warning("WLAN was reset back to AD HOC mode")
@@ -254,7 +253,9 @@ class PicoBridge:
     async def broadcast_uart_loop(self) -> None:
         while True:
             if self._tx_activity or self._rx_activity:
-                await self._ws_manager.broadcast_activity(tx=self._tx_activity, rx=self._rx_activity)
+                data = {'tx': self._tx_activity, 'rx': self._rx_activity}
+
+                await self._ws_manager.broadcast_payloads(payloads=[json.dumps(data)])
 
                 self._tx_activity = False
                 self._rx_activity = False
@@ -275,7 +276,8 @@ class PicoBridge:
             self._rx_bytes = 0
             self._tx_bytes = 0
 
-            await self._ws_manager.broadcast_json({'rx_bps': self._rx_rate, 'tx_bps': self._tx_rate})
+            data = {'rx_bps': self._rx_rate, 'tx_bps': self._tx_rate}
+            await self._ws_manager.broadcast_payloads(payloads=[json.dumps(data)])
 
 
     async def monitor_system(self) -> None:
@@ -285,7 +287,9 @@ class PicoBridge:
             mem_free = self._system_monitor.get_mem_free()
             mem_alloc = self._system_monitor.get_mem_alloc()
 
-            await self._ws_manager.broadcast_json({'mem_free': mem_free, 'mem_alloc': mem_alloc})
+            data = {'mem_free': mem_free, 'mem_alloc': mem_alloc}
+
+            await self._ws_manager.broadcast_payloads(payloads=[json.dumps(data)])
 
     async def handle_websocket_input(self, raw_json: str) -> None:
         try:

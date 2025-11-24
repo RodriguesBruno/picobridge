@@ -3,7 +3,7 @@ import utime as time
 from network import WLAN
 
 
-def wifi_connect(ssid: str, password: str, max_wait_s: int = 60, *, force_reconnect: bool = True) -> network.WLAN:
+def wlan_infra_mode(ssid: str, password: str, max_wait_s: int = 60, *, force_reconnect: bool = True) -> WLAN:
     """
     Connect to Wi-Fi and raise RuntimeError if not connected within max_wait_s.
     Also raises immediately for known failure statuses.
@@ -48,7 +48,7 @@ def wifi_connect(ssid: str, password: str, max_wait_s: int = 60, *, force_reconn
         time.sleep(0.25)
 
 
-def start_ap(ssid: str, password: str) -> WLAN:
+def wlan_ap_mode(ssid: str, password: str) -> WLAN:
     ap: WLAN = network.WLAN(network.AP_IF)
     ap.config(essid=ssid, password=password)
     ap.active(True)
