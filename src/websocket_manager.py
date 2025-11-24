@@ -1,5 +1,3 @@
-import json
-
 from src.logger import Logger
 
 
@@ -45,11 +43,3 @@ class WebsocketManager:
 
                 if not ok:
                     break
-
-    async def broadcast_json(self, obj: dict) -> None:
-        s = json.dumps(obj)
-        for ws in self._websockets[:]:
-            await self._safe_send(ws, s)
-
-    async def broadcast_activity(self, tx: bool, rx: bool) -> None:
-        await self.broadcast_json({'tx': tx, 'rx': rx})
