@@ -1,4 +1,4 @@
-import ujson as json
+import json
 
 
 def read_file_as_json(filename: str) -> dict:
