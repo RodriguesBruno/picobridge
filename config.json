@@ -1,8 +1,8 @@
 {
   "picobridge": {
-    "version": "1.3",
-    "plugged_device": "change me",
-    "location": "change me",
+    "version": "1.5",
+    "plugged_device": "change_me",
+    "location": "change_me",
     "port": 2222,
     "wlan":  {
       "is_ad_hoc": true,
@@ -11,15 +11,15 @@
         "psk": "pico1234"
       },
       "infrastructure": {
-        "ssid": "MY_WIFI",
-        "psk": "my_wifi_password"
+        "ssid": "change_me",
+        "psk": "superpassword"
       }
     },
     "uart": {
       "physical": {
         "uart_id": 0,
-        "tx_pin": 0,
-        "rx_pin": 1
+        "tx_gp": 0,
+        "rx_gp": 1
       },
       "settings": {
         "baudrate": 9600,
@@ -27,6 +27,17 @@
         "parity": null,
         "stop": 1
       }
+    },
+    "display_controller": {
+      "i2c": {
+        "id": 1,
+        "sda_gp": 18,
+        "scl_gp": 19
+      }
+    },
+    "screensaver": {
+      "enabled": true,
+      "idle_timer_s": 60
     },
     "webservice":  {
     "port": 8080
