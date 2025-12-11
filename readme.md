@@ -6,19 +6,36 @@ It runs on the Raspberry Pi Pico 2 W and provides UART access via a browser-base
 
 ---
 
+## Bill of Materials
+
+- Raspberry Pi Pico 2 W
+- DB9 RS-232 Adapter (MAX3232 RS232 to TTL Serial Converter Module DB9 Male Connector)
+- 0.96inch OLED Display (I2C)
+
+----
 ## 🔌 Pinout Connection
+
 
 **Raspberry Pi Pico 2 W** → **DB9 RS-232 Adapter**
 
-| Pico Pin     | Signal   | DB9 Adapter |
-|--------------|----------|-------------|
-| PIN 40       | +5V      | VCC         |
-| PIN 38       | GND      | GND         |
-| PIN 1 (GP0)  | UART TX  | TX          |
-| PIN 2 (GP1)  | UART RX  | RX          |
+| Pico Pin    | Signal  | DB9 Adapter |
+|-------------|---------|-------------|
+| PIN 36      | +3.3V   | VCC         |
+| PIN 38      | GND     | GND         |
+| PIN 1 (GP0) | UART TX | TX          |
+| PIN 2 (GP1) | UART RX | RX          |
 
 > Note: Some RS-232 adapters require TX/RX to be crossed (TX → RX, RX → TX). Verify with your adapter.
 
+
+**Raspberry Pi Pico 2 W** → **OLED Display**
+
+| Pico Pin      | Signal | OLED Display |
+|---------------|--------|--------------|
+| PIN 40        | +5V    | VCC          |
+| PIN 23        | GND    | GND          |
+| PIN 24 (GP18) | SDA    | SDA          |
+| PIN 25 (GP19) | SCL    | SCL          |
 ---
 
 ## 💻 Installation
