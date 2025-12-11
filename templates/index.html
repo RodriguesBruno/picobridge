@@ -60,7 +60,10 @@
         </div>
       </div>
 
-      <!-- Bottom-pinned -->
+      <div class="identify-device withMargin">
+        <button id="identify-btn" class="button-identify">Identify</button>
+      </div>
+
       <div class="pb-system" aria-label="System Memory">
         <div class="system-monitor">
           <p><strong>Allocated:</strong> <span id="mem-alloc">0</span></p>
@@ -173,10 +176,33 @@
                             <option value="2">2</option>
                         </select>
                     </label>
+
+                    <h2 class="withMargin">Screensaver Settings</h2>
+                    <label class="switch withMargin">
+                      <input type="checkbox" id="screensaver_enabled" name="screensaver_enabled">
+                      <span class="slider"></span>
+                      <span class="switch-label">Enabled</span>
+                    </label>
+
+                    <div id="screensaver-timer-container" class="hidden withMargin">
+                      <label>
+                        Idle Timeout: <span id="screensaver-timer-value">60</span> seconds
+                          <input
+                            type="range"
+                            id="screensaver_idle_timer_s"
+                            name="screensaver_idle_timer_s"
+                            min="10"
+                            max="480"
+                            value="60"
+                            step="10"
+                            >
+                      </label>
+                    </div>
+
                     <button type="submit" class="button-primary">Apply</button>
 
                     <div class="bottom">
-                       <h5 class="warning"><strong>*Reboot if WI-FI settings changed</strong></h5>
+                       <h5 class="warning"><strong>*Rebooting if WI-FI settings are changed</strong></h5>
                    </div>
 
                 </form>

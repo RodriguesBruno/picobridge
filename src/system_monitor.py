@@ -9,7 +9,7 @@ class SystemMonitor:
         self._mem_alloc = 0
         self._mem_low_value = 70_000
         self._mem_refresh_timer: int = 1
-        self._gc_timer: int = 3
+        self._gc_timer: int = 5
         self._errors_qty: int = 0
         self._errors_max_qty: int = errors_max_qty
         self._start_date: str = ''

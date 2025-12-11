@@ -548,3 +548,40 @@ input[type=checkbox] { display: none; }
     padding: 1rem;
   }
 }
+
+/* IDENTIFY button — same styling as button-primary but yellow/orange */
+.button-identify {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #ff9800;     /* orange */
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+/* Hover state like primary */
+.button-identify:hover {
+  background-color: #f57c00;     /* darker orange */
+}
+
+/* Active (identify running) */
+.button-identify.active {
+  background-color: #e65100;     /* deep orange */
+}
+
+#screensaver-timer-container {
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+#screensaver-timer-container input[type=range] {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.hidden {
+    display: none;
+}

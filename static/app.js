@@ -10,20 +10,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const ws = new WebSocket(`ws://${location.host}/ws`);
 
-  // --- NEW: simple prompt state ---
   let expectPassword = false;
 
   function getTerminalText() {
-      // innerText preserves visual line breaks between <div> entries
-      return output.innerText || output.textContent || "";
-    }
+    return output.innerText || output.textContent || "";
+  }
 
   clearBtn.addEventListener("click", () => {
-      // Clear the terminal contents
-      output.innerHTML = "";
-      // Scroll to top (optional)
-      output.scrollTop = 0;
-    });
+    output.innerHTML = "";
+    output.scrollTop = 0;
+  });
 
   function flash(btn, text, millis = 1000) {
     const old = btn.textContent;
@@ -38,7 +34,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
       } else {
-        // Fallback for older browsers/http
         const ta = document.createElement("textarea");
         ta.value = text;
         ta.style.position = "fixed";
@@ -109,7 +104,6 @@ document.addEventListener("DOMContentLoaded", function () {
         output.appendChild(div);
         output.scrollTop = output.scrollHeight;
 
-        // --- NEW: detect prompts and switch field mode ---
         const out = data.output;
         if (/\bpassword\s*:?\s*$/i.test(out) || out.toLowerCase().includes("password:")) {
           expectPassword = true;
@@ -119,7 +113,6 @@ document.addEventListener("DOMContentLoaded", function () {
           out.trim().endsWith(">") ||
           out.trim().endsWith("#")
         ) {
-          // Likely username prompt or we’re back at a device prompt
           expectPassword = false;
           setInputForPassword(false);
         }
@@ -131,8 +124,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (data.mem_alloc !== undefined && data.mem_free !== undefined) {
-        document.getElementById("mem-alloc").textContent = `${data.mem_alloc.toLocaleString()} B`;
-        document.getElementById("mem-free").textContent = `${data.mem_free.toLocaleString()} B`;
+        document.getElementById("mem-alloc").textContent =
+          `${data.mem_alloc.toLocaleString()} B`;
+        document.getElementById("mem-free").textContent =
+          `${data.mem_free.toLocaleString()} B`;
       }
     } catch (err) {
       console.error("WebSocket error:", err);
@@ -141,10 +136,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   terminalForm.addEventListener("submit", e => {
     e.preventDefault();
-    const val = terminalInput.value; // allow empty to send just ENTER
+    const val = terminalInput.value;
     ws.send(JSON.stringify({ input: val }));
 
-    // After sending a password, immediately reset the field to normal text
     if (expectPassword) {
       expectPassword = false;
       setInputForPassword(false);
@@ -170,6 +164,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
   loadPBSettings();
 
+  // IDENTIFY BUTTON LOGIC
+  const identifyBtn = document.getElementById("identify-btn");
+  let identifyActive = false;
+
+  async function refreshIdentifyState() {
+    try {
+      const res = await fetch("/api/v1/pb/identify");
+      const data = await res.json();
+
+      identifyActive = Boolean(data.identify);
+
+      if (identifyActive) {
+        identifyBtn.textContent = "Stop Identify";
+        identifyBtn.classList.add("active");
+      } else {
+        identifyBtn.textContent = "Identify Device";
+        identifyBtn.classList.remove("active");
+      }
+    } catch (e) {
+      console.error("Failed to refresh identify state", e);
+    }
+  }
+
+  identifyBtn.addEventListener("click", async () => {
+    if (identifyActive) {
+      await fetch("/api/v1/pb/identify/stop");
+    } else {
+      await fetch("/api/v1/pb/identify/start");
+    }
+    await refreshIdentifyState();
+  });
+
+  refreshIdentifyState();
+
   const modal = document.getElementById("settings-modal");
   const settingsForm = document.getElementById("settings-form");
   const closeBtn = document.getElementById("modal-close");
@@ -186,19 +214,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
   adhocToggle.addEventListener("change", updateWifiVisibility);
 
+  /* ------------------------------
+     SCREENSAVER UI ELEMENTS
+  ------------------------------ */
+  const ssToggle = document.getElementById("screensaver_enabled");
+  const ssTimerContainer = document.getElementById("screensaver-timer-container");
+  const ssTimerSlider = document.getElementById("screensaver_idle_timer_s");
+  const ssTimerValue = document.getElementById("screensaver-timer-value");
+
+  function updateScreensaverVisibility() {
+    const enabled = ssToggle.checked;
+    ssTimerContainer.classList.toggle("hidden", !enabled);
+  }
+
+  ssTimerSlider?.addEventListener("input", () => {
+    ssTimerValue.textContent = ssTimerSlider.value;
+  });
+
+  ssToggle?.addEventListener("change", updateScreensaverVisibility);
+
+  /* ------------------------------ */
+
   document.getElementById("settings-btn").addEventListener("click", () => {
     fetch('/api/v1/pb/settings')
       .then(res => res.json())
       .then(settings => {
-        console.log(settings)
+        console.log(settings);
 
         settingsForm.plugged_device.value = settings.plugged_device || '';
         settingsForm.location.value = settings.location || '';
 
-        settingsForm.baudrate.value = settings.baudrate;
-        settingsForm.bits.value = settings.bits;
-        settingsForm.parity.value = settings.parity ?? "None";
-        settingsForm.stop.value = settings.stop;
+        settingsForm.baudrate.value = settings.uart.baudrate;
+        settingsForm.bits.value = settings.uart.bits;
+        settingsForm.parity.value = settings.uart.parity ?? "None";
+        settingsForm.stop.value = settings.uart.stop;
 
         const wlan = settings.wlan || {};
         const isAdHoc = Boolean(wlan.is_ad_hoc);
@@ -213,6 +262,14 @@ document.addEventListener("DOMContentLoaded", function () {
         settingsForm.psk_infra.value = infra.psk || '';
 
         updateWifiVisibility();
+
+        // Load screensaver settings
+        const ss = settings.screensaver || {};
+        settingsForm.screensaver_enabled.checked = ss.enabled ?? false;
+        settingsForm.screensaver_idle_timer_s.value = ss.idle_timer_s ?? 60;
+        ssTimerValue.textContent = settingsForm.screensaver_idle_timer_s.value;
+
+        updateScreensaverVisibility();
 
         modal.classList.remove("hidden");
       });
@@ -237,6 +294,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     };
 
+    const screensaver = {
+      screensaver_enabled: settingsForm.querySelector('[name="screensaver_enabled"]').checked,
+      screensaver_idle_timer_s: parseInt(settingsForm.querySelector('[name="screensaver_idle_timer_s"]').value) || 60
+    };
+
     const data = {
       plugged_device: settingsForm.querySelector('[name="plugged_device"]').value,
       location: settingsForm.querySelector('[name="location"]').value,
@@ -247,24 +309,22 @@ document.addEventListener("DOMContentLoaded", function () {
         ? null
         : parseInt(settingsForm.querySelector('[name="parity"]').value),
       stop: parseInt(settingsForm.querySelector('[name="stop"]').value),
-      wlan
+      wlan,
+      screensaver
     };
-
-    console.log("New Settings: ", data)
 
     fetch('/api/v1/pb/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
-
     }).then(res => {
       if (res.ok) {
         modal.classList.add("hidden");
         loadPBSettings();
-
       } else {
         alert("Failed to update settings.");
       }
     }).catch(console.error);
   });
+
 });

@@ -10,6 +10,7 @@ from src.websocket_manager import WebsocketManager
 from src.picobridge import PicoBridge
 from src.telnet import TELNET_INIT
 
+
 config_file: str = 'config.json'
 config: dict = read_file_as_json(filename=config_file)
 
@@ -90,7 +91,7 @@ async def ws_handler(request, ws):
 
     except Exception:
         ip = 'unknown'
-    
+
     logger.info(f"WebSocket client connected from {ip}")
 
     websocket_manager.register(ws)
@@ -112,7 +113,7 @@ async def ws_handler(request, ws):
             except Exception as e:
                 logger.info(f"Error handling websocket input: {e}")
                 continue
-    
+
     except Exception as e:
         logger.info(f"Unexpected websocket handler error: {e}")
 
@@ -158,6 +159,29 @@ async def crlf_to_uart_disable(req):
     pico_bridge.disable_crlf_to_uart()
     return {'message': 'crlf_to_uart disabled'}
 
+@app.post('/api/v1/pb/display/test')
+async def display_self_test(req):
+    data = req.json
+    if data['val'] not in range(0, 10):
+        return 'Invalid Value. Must be between [0, 9]'
+
+    pico_bridge.display_self_test(value=int(data.get('val')))
+    return {'message': 'ok'}
+
+@app.get('/api/v1/pb/identify/start')
+async def identify_start(req):
+    await pico_bridge.identify_start()
+    return {'message': 'identify started'}
+
+@app.get('/api/v1/pb/identify/stop')
+async def identify_stop(req):
+    await pico_bridge.identify_stop()
+    return {'message': 'identify stopped'}
+
+@app.get('/api/v1/pb/identify')
+async def identify(req):
+    result = await pico_bridge.get_identify()
+    return {'identify': result}
 
 async def start_microdot(ip: str) -> None:
     port = config.get('picobridge', {}).get('webservice', {}).get('port', 8080)
@@ -171,8 +195,8 @@ async def start_microdot(ip: str) -> None:
 
 
 async def main() -> None:
-    pico_bridge.start_network()
-    ip: str = pico_bridge.get_ip_address()
+    await pico_bridge.start_network()
+    ip_address: str = pico_bridge.get_ip_address()
     tcp_port: int = pico_bridge.get_tcp_port()
     stop_flag: list[bool] = [False]
 
@@ -185,12 +209,12 @@ async def main() -> None:
     # Start WebSocket broadcast for UI indicators
     asyncio.create_task(pico_bridge.broadcast_uart_loop())
 
-    srv = await asyncio.start_server(handle_client, ip, tcp_port)
+    srv = await asyncio.start_server(handle_client, ip_address, tcp_port)
 
-    logger.info(f"Listening on {ip}: {tcp_port}")
+    logger.info(f"Listening on {ip_address}: {tcp_port}")
 
     try:
-        await asyncio.gather(start_microdot(ip=ip))
+        await asyncio.gather(start_microdot(ip=ip_address))
 
     finally:
         srv.close()
