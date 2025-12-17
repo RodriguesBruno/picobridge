@@ -1,6 +1,6 @@
 {
   "picobridge": {
-    "version": "1.5",
+    "version": "1.6",
     "plugged_device": "change_me",
     "location": "change_me",
     "port": 2222,
@@ -36,7 +36,7 @@
       }
     },
     "screensaver": {
-      "enabled": true,
+      "enabled": false,
       "idle_timer_s": 60
     },
     "webservice":  {
