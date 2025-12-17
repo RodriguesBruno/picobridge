@@ -176,6 +176,12 @@ class PicoBridge:
             must_save_config = True
 
         if must_save_config:
+            await self._display_controller.write_to_line(
+                line=5,
+                text=f"http://{self._ip_address}:{self._web_service_port}, Baud: {new_settings.get('baudrate')}, "
+                     f"Device Name: {self._plugged_device}, v{self._version}"
+            )
+
             self.save_config()
 
         if must_restart:
