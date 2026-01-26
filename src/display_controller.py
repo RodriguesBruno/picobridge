@@ -450,7 +450,7 @@ class DisplayController:
             try:
                 async with self._display_lock:
                     self._bar_renderer.step(self._display_has_started)
-                await asyncio.sleep_ms(100)
+                await asyncio.sleep_ms(60)
 
             except Exception as e:
                 print(f"[DISPLAY_CONTROLLER] Driver Bar Error: {e}")
