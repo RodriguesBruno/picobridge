@@ -13,14 +13,11 @@ class SystemMonitor:
         self._errors_qty: int = 0
         self._errors_max_qty: int = errors_max_qty
         self._start_date: str = ''
-        self._loop = asyncio.get_event_loop()
 
-        self._refresh()
+    async def start(self) -> None:
+        asyncio.create_task(self._update_memory())
+        asyncio.create_task(self._run_garbage_collector())
         gc.enable()
-
-    def _refresh(self) -> None:
-        self._loop.create_task(self._update_memory())
-        self._loop.create_task(self._run_garbage_collector())
 
     async def get_dict(self) -> dict:
         return {

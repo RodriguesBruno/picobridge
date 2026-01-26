@@ -3,9 +3,13 @@ import asyncio
 from libraries.microdot.microdot import Microdot, Response, send_file
 from libraries.microdot.utemplate import Template
 from libraries.microdot.websocket import with_websocket
+from libraries.oled.ssd1306 import SSD1306I2C
+from src.display import get_display
+from src.display_controller import DisplayController
 
 from src.file_handlers import read_file_as_json
 from src.logger import Logger
+from src.screensaver import Screensaver
 from src.websocket_manager import WebsocketManager
 from src.picobridge import PicoBridge
 from src.telnet import TELNET_INIT
@@ -23,7 +27,20 @@ logger: Logger = Logger("Main")
 
 websocket_manager: WebsocketManager = WebsocketManager()
 
-pico_bridge: PicoBridge = PicoBridge(ws_manager=websocket_manager)
+display: SSD1306I2C = get_display(
+    i2c_id=config.get('picobridge').get('display').get('i2c').get('id'),
+    i2c_sda=config.get('picobridge').get('display').get('i2c').get('sda_gp'),
+    i2c_scl=config.get('picobridge').get('display').get('i2c').get('scl_gp')
+)
+
+screensaver: Screensaver = Screensaver(
+    enabled=config.get('picobridge').get('screensaver').get('enabled'),
+    timeout_s=config.get('picobridge').get('screensaver').get('timeout_s')
+)
+
+display_controller: DisplayController = DisplayController(display=display, screensaver=screensaver)
+
+pico_bridge: PicoBridge = PicoBridge(display_controller=display_controller, ws_manager=websocket_manager)
 
 
 async def handle_client(reader, writer) -> None:
@@ -195,19 +212,9 @@ async def start_microdot(ip: str) -> None:
 
 
 async def main() -> None:
-    await pico_bridge.start_network()
+    await pico_bridge.start()
     ip_address: str = pico_bridge.get_ip_address()
     tcp_port: int = pico_bridge.get_tcp_port()
-    stop_flag: list[bool] = [False]
-
-    pico_bridge.start_uart()
-    # Start UART <-> client bridge
-    asyncio.create_task(pico_bridge.uart_to_clients(stop_flag))
-    asyncio.create_task(pico_bridge.monitor_throughput())
-    asyncio.create_task(pico_bridge.monitor_system())
-
-    # Start WebSocket broadcast for UI indicators
-    asyncio.create_task(pico_bridge.broadcast_uart_loop())
 
     srv = await asyncio.start_server(handle_client, ip_address, tcp_port)
 
