@@ -15,26 +15,16 @@ from src.logger import Logger
 
 
 class PicoBridge:
-    def __init__(self, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
+    def __init__(self, display_controller: DisplayController, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
         self._terminal_framer: TerminalFramer = TerminalFramer()
         self._system_monitor: SystemMonitor = SystemMonitor()
 
         self._ws_manager: WebsocketManager = ws_manager
         self._config_path: str = config_path
         self._config: dict = read_file_as_json(config_path)
-        self._logger: Logger = Logger("PicoBridge")
+        self._logger: Logger = Logger("[PicoBridge]")
 
-        self._display_controller: DisplayController = DisplayController(
-            i2c_id=self._config.get('picobridge').get('display_controller').get('i2c').get('id'),
-            i2c_sda=self._config.get('picobridge').get('display_controller').get('i2c').get('sda_gp'),
-            i2c_scl=self._config.get('picobridge').get('display_controller').get('i2c').get('scl_gp')
-        )
-
-        # Screensaver
-        self._screen_saver_enabled: bool = self._config.get('picobridge').get('screensaver').get('enabled')
-        self._screen_saver_timeout_s: int = self._config.get('picobridge').get('screensaver').get('idle_timer_s')
-        self._screensaver_active: bool = False
-        self._last_activity_time: int = time.ticks_ms()
+        self._display_controller: DisplayController = display_controller
 
         # Identifier
         self._identify_active: bool = False
@@ -49,7 +39,8 @@ class PicoBridge:
 
         self._rx_bytes: int = 0
         self._tx_bytes: int = 0
-        self._last_stats_time = time.ticks_ms()
+        self._last_stats_time: int = time.ticks_ms()
+
         self._rx_rate: int = 0
         self._tx_rate: int = 0
 
@@ -75,15 +66,24 @@ class PicoBridge:
         self._crlf_to_uart: bool = True
         self._uart_to_crlf: bool = False
 
-        self._logger.info(f"PicoBridge v{self._version}")
+        self._logger.info(f"PicoBridge v{self._version} Starting")
 
-        self._loop = asyncio.get_event_loop()
-        self._loop.create_task(self._pico_bridge_start())
+    async def start(self) -> None:
+        await self._system_monitor.start()
+        asyncio.create_task(self._monitor_system())
 
-
-    async def _pico_bridge_start(self) -> None:
+        await self._display_controller.start()
         await self._display_controller.add_highlight(line=1)
         await self._display_controller.write_to_line(line=1, text=f"PicoBridge")
+        await self.start_network()
+
+        await self.start_uart()
+
+        asyncio.create_task(self._uart_to_clients())
+        asyncio.create_task(self._monitor_throughput())
+
+        asyncio.create_task(self._display_controller.screensaver_drive())
+        asyncio.create_task(self._broadcast_uart_loop())
 
     async def _identify_flash(self) -> None:
         level = 255
@@ -103,7 +103,7 @@ class PicoBridge:
             await self._display_controller.set_brightness(level)
             await asyncio.sleep_ms(40)
 
-    def start_uart(self) -> None:
+    async def start_uart(self) -> None:
         uart_conf = self._config.get('picobridge').get('uart')
         physical = uart_conf.get('physical')
         settings = uart_conf.get('settings')
@@ -146,7 +146,7 @@ class PicoBridge:
         if self._config['picobridge']['uart']['settings'] != uart_settings:
             self._config['picobridge']['uart']['settings'] = uart_settings
 
-            self.start_uart()
+            await self.start_uart()
 
             must_save_config = True
 
@@ -159,20 +159,21 @@ class PicoBridge:
             must_restart = True
 
         screensaver_enabled = new_settings.get('screensaver').get('screensaver_enabled')
-        if self._screen_saver_enabled != screensaver_enabled:
+        if self._display_controller.screensaver.is_enabled() != screensaver_enabled:
             self._config['picobridge']['screensaver']['enabled'] = screensaver_enabled
-            self._screen_saver_enabled = screensaver_enabled
-            if self._screen_saver_enabled:
+            if screensaver_enabled:
+                self._display_controller.screensaver.enable()
                 await self._display_controller.show_bar()
             else:
+                self._display_controller.screensaver.disable()
                 await self._display_controller.hide_bar()
 
             must_save_config = True
 
-        screensaver_idle_timer_s = new_settings.get('screensaver').get('screensaver_idle_timer_s')
-        if self._screen_saver_timeout_s != screensaver_idle_timer_s:
-            self._config['picobridge']['screensaver']['idle_timer_s'] = screensaver_idle_timer_s
-            self._screen_saver_timeout_s = screensaver_idle_timer_s
+        timeout_s: int = new_settings.get('screensaver').get('screensaver_timeout_s')
+        if self._display_controller.screensaver.get_timeout() != timeout_s:
+            self._config['picobridge']['screensaver']['timeout_s'] = timeout_s
+            self._display_controller.screensaver.set_timeout(timeout_s)
             must_save_config = True
 
         if must_save_config:
@@ -181,7 +182,6 @@ class PicoBridge:
                 text=f"http://{self._ip_address}:{self._web_service_port}, Baud: {new_settings.get('baudrate')}, "
                      f"Device Name: {self._plugged_device}, v{self._version}"
             )
-
             self.save_config()
 
         if must_restart:
@@ -190,7 +190,6 @@ class PicoBridge:
             await asyncio.sleep(sleep_time)
 
             reset()
-
 
     def get_settings(self) -> dict:
         return {
@@ -218,7 +217,9 @@ class PicoBridge:
 
         lines_to_clear = (2, 3, 4, 5)
         for line in lines_to_clear:
-            await self._display_controller.clear_line(line)
+            await self._display_controller.clear_line(line=line)
+
+        await asyncio.sleep_ms(100)
 
         if self._is_ad_hoc:
             wlan_conf = self._config.get('picobridge').get('wlan').get('ad_hoc')
@@ -297,7 +298,10 @@ class PicoBridge:
         except Exception as e:
             self._logger.error(f"[Wake UART] {e}")
 
-    async def uart_to_clients(self, stop_flag: list[bool]) -> None:
+    async def _uart_to_clients(self, stop_flag: list[bool] = None) -> None:
+        if stop_flag is None:
+            stop_flag = [False]
+
         while not stop_flag[0]:
             had_data = False
 
@@ -338,7 +342,7 @@ class PicoBridge:
 
                     await self._ws_manager.broadcast_payloads(payloads)
 
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.05)
 
     async def client_to_uart(self, reader, writer, stop_flag: list[bool]) -> None:
         try:
@@ -374,7 +378,7 @@ class PicoBridge:
         finally:
             stop_flag[0] = True
 
-    async def broadcast_uart_loop(self) -> None:
+    async def _broadcast_uart_loop(self) -> None:
         while True:
             if self._tx_activity or self._rx_activity:
                 data = {'tx': self._tx_activity, 'rx': self._rx_activity}
@@ -386,11 +390,9 @@ class PicoBridge:
 
             await asyncio.sleep(0.05)
 
-    async def monitor_throughput(self) -> None:
+    async def _monitor_throughput(self) -> None:
         await self._display_controller.set_line_alignment(line=3, alignment="left")
         await self._display_controller.set_line_alignment(line=4, alignment="left")
-
-        full_bar = self._display_controller.display.width
 
         while True:
             await asyncio.sleep(1)
@@ -409,50 +411,20 @@ class PicoBridge:
                 payloads=[json.dumps({'rx_bps': self._rx_rate, 'tx_bps': self._tx_rate})]
             )
 
-            activity = bool(self._rx_rate or self._tx_rate)
+            activity: bool = bool(self._rx_rate or self._tx_rate)
 
-            if self._screen_saver_enabled:
+            if activity:
+                await self._display_controller.set_last_activity_time(value=now)
 
-                if activity:
-                    self._last_activity_time = now
-
-                    if self._screensaver_active:
-                        self._screensaver_active = False
-                        await self._display_controller.set_brightness(level=255)
-                        await self._display_controller.show_bar()
-
-                    await self._display_controller.set_bar_length(value=full_bar)
-
-                else:
-                    idle_ms = time.ticks_diff(now, self._last_activity_time)
-                    idle_s = idle_ms / 1000
-
-                    if idle_s >= self._screen_saver_timeout_s:
-                        if not self._screensaver_active:
-                            self._screensaver_active = True
-                            await self._display_controller.set_brightness(level=1)
-                            await self._display_controller.hide_bar()
-                            await self._display_controller.clear_line(line=3)
-                            await self._display_controller.clear_line(line=4)
-                    else:
-                        remaining = self._screen_saver_timeout_s - idle_s
-                        percent = remaining / self._screen_saver_timeout_s
-                        bar_len = int(full_bar * percent)
-
-                        await self._display_controller.show_bar()
-                        await self._display_controller.set_bar_length(value=bar_len)
+            if self._display_controller.screensaver_is_active():
+                await self._display_controller.clear_line(line=3)
+                await self._display_controller.clear_line(line=4)
 
             else:
-                self._screensaver_active = False
-                await self._display_controller.set_brightness(level=255)
-                # await self._display_controller.show_bar()
-                # await self._display_controller.set_bar_length(value=full_bar)
-
-            if not self._screensaver_active:
                 await self._display_controller.write_to_line(line=3, text=f"RX: {self._rx_rate} b/s")
                 await self._display_controller.write_to_line(line=4, text=f"TX: {self._tx_rate} b/s")
 
-    async def monitor_system(self) -> None:
+    async def _monitor_system(self) -> None:
         while True:
             await asyncio.sleep(1)
 
@@ -497,24 +469,26 @@ class PicoBridge:
     def display_self_test(self, value: int) -> None:
         self._display_controller.self_test(value=value)
 
-
-
     async def identify_stop(self) -> None:
         self._identify_active = False
+
+        if self._display_controller.screensaver_is_enabled():
+            await self._display_controller.activate_screensaver()
 
         if self._identify_task:
             self._identify_task.cancel()
             self._identify_task = None
 
-        await self._display_controller.set_brightness(self._identify_original_brightness)
+        await self._display_controller.reset_brightness()
 
     async def identify_start(self) -> None:
         if self._identify_active:
             return
 
+        if self._display_controller.screensaver_is_enabled():
+            await self._display_controller.deactivate_screensaver()
         self._identify_active = True
-        self._identify_original_brightness = 255
-        self._identify_task = self._loop.create_task(self._identify_flash())
+        self._identify_task = asyncio.create_task(self._identify_flash())
 
     async def get_identify(self)-> bool:
         return self._identify_active

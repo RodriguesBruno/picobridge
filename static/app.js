@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", function () {
   ------------------------------ */
   const ssToggle = document.getElementById("screensaver_enabled");
   const ssTimerContainer = document.getElementById("screensaver-timer-container");
-  const ssTimerSlider = document.getElementById("screensaver_idle_timer_s");
+  const ssTimerSlider = document.getElementById("screensaver_timeout_s");
   const ssTimerValue = document.getElementById("screensaver-timer-value");
 
   function updateScreensaverVisibility() {
@@ -266,8 +266,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // Load screensaver settings
         const ss = settings.screensaver || {};
         settingsForm.screensaver_enabled.checked = ss.enabled ?? false;
-        settingsForm.screensaver_idle_timer_s.value = ss.idle_timer_s ?? 60;
-        ssTimerValue.textContent = settingsForm.screensaver_idle_timer_s.value;
+        settingsForm.screensaver_timeout_s.value = ss.timeout_s ?? 60;
+        ssTimerValue.textContent = settingsForm.screensaver_timeout_s.value;
 
         updateScreensaverVisibility();
 
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const screensaver = {
       screensaver_enabled: settingsForm.querySelector('[name="screensaver_enabled"]').checked,
-      screensaver_idle_timer_s: parseInt(settingsForm.querySelector('[name="screensaver_idle_timer_s"]').value) || 60
+      screensaver_timeout_s: parseInt(settingsForm.querySelector('[name="screensaver_timeout_s"]').value) || 60
     };
 
     const data = {

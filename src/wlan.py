@@ -46,7 +46,6 @@ async def wlan_infra_mode(ssid: str, password: str, max_wait_s: int = 60, *, dis
                 for i in range(0, 6, 2)
             )
             msg = f"Connected w/MAC: {mac_str}"
-            print(msg)
 
             await display_callback(line=2, text=msg[0:15])
             await display_callback(line=3, text=msg[17:])
