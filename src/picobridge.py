@@ -265,6 +265,9 @@ class PicoBridge:
 
                 self._wlan_restarts += 1
 
+                await self._display_controller.disable_scrolling(line=5)
+                await self._display_controller.clear_line(line=5)
+
                 if self._wlan_restarts > self._wlan_max_restarts:
                     for line in lines_to_clear:
                         await self._display_controller.clear_line(line)

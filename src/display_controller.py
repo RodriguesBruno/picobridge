@@ -104,7 +104,7 @@ class _LineRenderer:
         text_width = FONT_WIDTH * len(text)
 
         x -= self._state.scroll_speeds[idx]
-        if x < -text_width - 10:
+        if x <= -text_width:
             x = self._display.width
 
         self._state.scroll_positions[idx] = x
@@ -438,11 +438,16 @@ class DisplayController:
         while True:
             try:
                 dirty = False
+                scrolling_active = False
                 if self._display_has_started:
+                    scrolling_active = any(
+                        self._line_state.scroll_enabled[idx] and self._line_state.lines_data[idx]
+                        for idx in range(self._line_state.line_count())
+                    )
                     async with self._display_lock:
                         dirty = self._line_renderer.render()
 
-                await asyncio.sleep_ms(30 if dirty else 100)
+                await asyncio.sleep_ms(30 if (dirty or scrolling_active) else 100)
 
             except Exception as e:
                 print(f"[DISPLAY_CONTROLLER] Drive Lines Error: {e}")
