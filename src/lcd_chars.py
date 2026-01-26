@@ -90,7 +90,7 @@ def make_str_matrix(value: str) -> tuple:
     if value == 'E':
         return char_e
 
-    return char_e
+    return char_o
 
 def c_gen(x: int, y: int, side: int) -> list:
     result = []
