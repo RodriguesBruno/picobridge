@@ -159,21 +159,21 @@ class PicoBridge:
             must_restart = True
 
         screensaver_enabled = new_settings.get('screensaver').get('screensaver_enabled')
-        if self._display_controller.screensaver.is_enabled() != screensaver_enabled:
+        if self._display_controller.screensaver_is_enabled() != screensaver_enabled:
             self._config['picobridge']['screensaver']['enabled'] = screensaver_enabled
             if screensaver_enabled:
-                self._display_controller.screensaver.enable()
+                self._display_controller.screensaver_enable()
                 await self._display_controller.show_bar()
             else:
-                self._display_controller.screensaver.disable()
+                self._display_controller.screensaver_disable()
                 await self._display_controller.hide_bar()
 
             must_save_config = True
 
         timeout_s: int = new_settings.get('screensaver').get('screensaver_timeout_s')
-        if self._display_controller.screensaver.get_timeout() != timeout_s:
+        if self._display_controller.screensaver_get_timeout() != timeout_s:
             self._config['picobridge']['screensaver']['timeout_s'] = timeout_s
-            self._display_controller.screensaver.set_timeout(timeout_s)
+            self._display_controller.screensaver_set_timeout(timeout_s)
             must_save_config = True
 
         if must_save_config:

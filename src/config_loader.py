@@ -4,7 +4,7 @@ from src.file_handlers import read_file_as_json
 
 DEFAULT_CONFIG = {
     "picobridge": {
-        "version": "1.6",
+        "version": "1.7",
         "plugged_device": "",
         "location": "",
         "port": 2222,
