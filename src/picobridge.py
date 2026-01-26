@@ -5,36 +5,23 @@ from machine import UART, Pin, reset
 from network import WLAN
 
 from src.display_controller import DisplayController
-from src.file_handlers import read_file_as_json, write_file_as_json
+from src.file_handlers import write_file_as_json
 from src.terminal_framer import TerminalFramer
 from src.websocket_manager import WebsocketManager
 from src.system_monitor import SystemMonitor
 from src.telnet import telnet_negotiation
 from src.wlan import wlan_ap_mode, wlan_infra_mode
 from src.logger import Logger
-from src.default.config.default_config import DEFAULT_CONFIG
-
-
-def _merge_defaults(cfg: dict, defaults: dict) -> dict:
-    for k, v in defaults.items():
-        if k not in cfg:
-            cfg[k] = v
-
-        elif isinstance(v, dict) and isinstance(cfg.get(k), dict):
-            _merge_defaults(cfg[k], v)
-
-    return cfg
 
 
 class PicoBridge:
-    def __init__(self, display_controller: DisplayController, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
+    def __init__(self, display_controller: DisplayController, ws_manager: WebsocketManager, config: dict, config_path: str = 'config.json') -> None:
         self._terminal_framer: TerminalFramer = TerminalFramer()
         self._system_monitor: SystemMonitor = SystemMonitor()
 
         self._ws_manager: WebsocketManager = ws_manager
         self._config_path: str = config_path
-        self._config = read_file_as_json(config_path, default=DEFAULT_CONFIG)
-        self._config = _merge_defaults(self._config, DEFAULT_CONFIG)
+        self._config: dict = config
         self._logger: Logger = Logger("[PicoBridge]")
 
         self._display_controller: DisplayController = display_controller

@@ -1,6 +1,10 @@
+import json
+
+from src.file_handlers import read_file_as_json
+
 DEFAULT_CONFIG = {
     "picobridge": {
-        "version": "0.1",
+        "version": "1.6",
         "plugged_device": "",
         "location": "",
         "port": 2222,
@@ -18,3 +22,17 @@ DEFAULT_CONFIG = {
         "webservice": {"port": 8080}
     }
 }
+
+def _deep_update(dst: dict, src: dict) -> dict:
+    for k, v in src.items():
+        if isinstance(v, dict) and isinstance(dst.get(k), dict):
+            _deep_update(dst[k], v)
+        else:
+            dst[k] = v
+    return dst
+
+def load_config(filename: str) -> dict:
+    config = read_file_as_json(filename, default={})
+    merged = json.loads(json.dumps(DEFAULT_CONFIG))
+    _deep_update(merged, config)
+    return merged

@@ -2,11 +2,7 @@ import os
 import json
 
 
-# def read_file_as_json(filename: str) -> dict:
-#     with open(filename, 'r') as f:
-#         return json.load(f)
-
-def read_file_as_json(filename: str, default: dict | None = None) -> dict:
+def read_file_as_json(filename: str, default: dict = None) -> dict:
     if default is None:
         default = {}
     try:
@@ -43,6 +39,3 @@ def write_file_as_json(filename: str, data: dict) -> None:
 
     os.rename(tmp, filename)
 
-# def write_file_as_json(filename: str, data: dict) -> None:
-#     with open(filename, 'w') as f:
-#         json.dump(data, f)
