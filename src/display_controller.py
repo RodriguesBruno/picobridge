@@ -84,8 +84,9 @@ class _LineRenderer:
         self._prev_hl = [False] * self._state.line_count()
 
     def _get_framebuf(self) -> FrameBuffer:
+        row_bytes = (fb_line_height + 7) // 8
         return framebuf.FrameBuffer(
-            bytearray(self._display.width * fb_line_height),
+            bytearray(self._display.width * row_bytes),
             self._display.width,
             fb_line_height,
             framebuf.MONO_VLSB
@@ -168,8 +169,9 @@ class _BarRenderer:
         self._fb = self._get_bar_framebuf()
 
     def _get_bar_framebuf(self) -> FrameBuffer:
+        row_bytes = (self._bar_thickness + 7) // 8
         return framebuf.FrameBuffer(
-            bytearray(self._display.width * self._bar_thickness),
+            bytearray(self._display.width * row_bytes),
             self._display.width,
             self._bar_thickness,
             framebuf.MONO_VLSB
