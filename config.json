@@ -1,6 +1,6 @@
 {
   "picobridge": {
-    "version": "1.6",
+    "version": "1.7",
     "plugged_device": "change_me",
     "location": "change_me",
     "port": 2222,

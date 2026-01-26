@@ -154,10 +154,10 @@ document.addEventListener("DOMContentLoaded", function () {
         document.getElementById("pb-plugged-device").textContent = settings.plugged_device;
         document.getElementById("pb-location").textContent = settings.location;
 
-        document.getElementById("baudrate").textContent = settings.baudrate;
-        document.getElementById("bits").textContent = settings.bits;
-        document.getElementById("parity").textContent = settings.parity;
-        document.getElementById("stop").textContent = settings.stop;
+        document.getElementById("baudrate").textContent = settings.uart.baudrate;
+        document.getElementById("bits").textContent = settings.uart.bits;
+        document.getElementById("parity").textContent = settings.uart.parity;
+        document.getElementById("stop").textContent = settings.uart.stop;
       })
       .catch(console.error);
   }

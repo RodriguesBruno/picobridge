@@ -4,10 +4,11 @@ from libraries.microdot.microdot import Microdot, Response, send_file
 from libraries.microdot.utemplate import Template
 from libraries.microdot.websocket import with_websocket
 from libraries.oled.ssd1306 import SSD1306I2C
+from src.config_loader import load_config
+
 from src.display import get_display
 from src.display_controller import DisplayController
 
-from src.file_handlers import read_file_as_json
 from src.logger import Logger
 from src.screensaver import Screensaver
 from src.websocket_manager import WebsocketManager
@@ -16,7 +17,7 @@ from src.telnet import TELNET_INIT
 
 
 config_file: str = 'config.json'
-config: dict = read_file_as_json(filename=config_file)
+config = load_config(filename=config_file)
 
 app: Microdot = Microdot()
 
@@ -40,7 +41,11 @@ screensaver: Screensaver = Screensaver(
 
 display_controller: DisplayController = DisplayController(display=display, screensaver=screensaver)
 
-pico_bridge: PicoBridge = PicoBridge(display_controller=display_controller, ws_manager=websocket_manager)
+pico_bridge: PicoBridge = PicoBridge(
+    display_controller=display_controller,
+    ws_manager=websocket_manager,
+    config=config
+)
 
 
 async def handle_client(reader, writer) -> None:
@@ -204,7 +209,7 @@ async def start_microdot(ip: str) -> None:
     port = config.get('picobridge', {}).get('webservice', {}).get('port', 8080)
 
     try:
-        await app.start_server(host=ip, port=port, debug=True)
+        await app.start_server(host=ip, port=port, debug=False)
 
     except Exception as e:
         logger.info(f"Error starting microdot server on {ip}:{port} - {e}")

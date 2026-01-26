@@ -5,7 +5,7 @@ from machine import UART, Pin, reset
 from network import WLAN
 
 from src.display_controller import DisplayController
-from src.file_handlers import read_file_as_json, write_file_as_json
+from src.file_handlers import write_file_as_json
 from src.terminal_framer import TerminalFramer
 from src.websocket_manager import WebsocketManager
 from src.system_monitor import SystemMonitor
@@ -15,13 +15,13 @@ from src.logger import Logger
 
 
 class PicoBridge:
-    def __init__(self, display_controller: DisplayController, ws_manager: WebsocketManager, config_path: str = 'config.json') -> None:
+    def __init__(self, display_controller: DisplayController, ws_manager: WebsocketManager, config: dict, config_path: str = 'config.json') -> None:
         self._terminal_framer: TerminalFramer = TerminalFramer()
         self._system_monitor: SystemMonitor = SystemMonitor()
 
         self._ws_manager: WebsocketManager = ws_manager
         self._config_path: str = config_path
-        self._config: dict = read_file_as_json(config_path)
+        self._config: dict = config
         self._logger: Logger = Logger("[PicoBridge]")
 
         self._display_controller: DisplayController = display_controller
@@ -159,21 +159,21 @@ class PicoBridge:
             must_restart = True
 
         screensaver_enabled = new_settings.get('screensaver').get('screensaver_enabled')
-        if self._display_controller.screensaver.is_enabled() != screensaver_enabled:
+        if self._display_controller.screensaver_is_enabled() != screensaver_enabled:
             self._config['picobridge']['screensaver']['enabled'] = screensaver_enabled
             if screensaver_enabled:
-                self._display_controller.screensaver.enable()
+                self._display_controller.screensaver_enable()
                 await self._display_controller.show_bar()
             else:
-                self._display_controller.screensaver.disable()
+                self._display_controller.screensaver_disable()
                 await self._display_controller.hide_bar()
 
             must_save_config = True
 
         timeout_s: int = new_settings.get('screensaver').get('screensaver_timeout_s')
-        if self._display_controller.screensaver.get_timeout() != timeout_s:
+        if self._display_controller.screensaver_get_timeout() != timeout_s:
             self._config['picobridge']['screensaver']['timeout_s'] = timeout_s
-            self._display_controller.screensaver.set_timeout(timeout_s)
+            self._display_controller.screensaver_set_timeout(timeout_s)
             must_save_config = True
 
         if must_save_config:
@@ -264,6 +264,9 @@ class PicoBridge:
                 await self._display_controller.clear_line(line=5)
 
                 self._wlan_restarts += 1
+
+                await self._display_controller.disable_scrolling(line=5)
+                await self._display_controller.clear_line(line=5)
 
                 if self._wlan_restarts > self._wlan_max_restarts:
                     for line in lines_to_clear:
