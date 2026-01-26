@@ -94,7 +94,7 @@ class _LineRenderer:
     def _blit_to_line(self, fb, line_index: int) -> None:
         self._display.blit(fb, 0, line_index * fb_line_height)
 
-    def _render_scrolling_line(self, idx: int, text: str, highlight: bool) -> None:
+    def _render_scrolling_line(self, idx: int, text: str, highlight: bool) -> bool:
         fb = self._fb
         fb.fill(0)
         x = self._state.scroll_positions[idx]
@@ -112,14 +112,17 @@ class _LineRenderer:
             fb.rect(0, 0, self._display.width, fb_line_height, 1)
 
         self._blit_to_line(fb, idx)
+        return True
 
     def render(self) -> None:
+        dirty = False
         for idx in range(self._state.line_count()):
             text = self._state.lines_data[idx]
             highlight = self._state.highlighted_lines[idx]
 
             if self._state.scroll_enabled[idx] and text:
-                self._render_scrolling_line(idx, text, highlight)
+                if self._render_scrolling_line(idx, text, highlight):
+                    dirty = True
                 continue
 
             if text != self._prev_render[idx] or highlight != self._prev_hl[idx]:
@@ -145,7 +148,10 @@ class _LineRenderer:
 
                 self._blit_to_line(fb, idx)
 
-        self._display.show()
+                dirty = True
+
+        if dirty:
+            self._display.show()
 
 
 class _BarRenderer:
