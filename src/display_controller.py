@@ -4,7 +4,7 @@ import framebuf
 from framebuf import FrameBuffer
 
 from libraries.oled.ssd1306 import SSD1306I2C
-from src.lcd_numbers import get_char
+from src.lcd_chars import get_char
 from src.screensaver import Screensaver
 
 chars_per_line: int = 16
@@ -325,23 +325,23 @@ class DisplayController:
             bar=self._bar_renderer
         )
 
-    async def start(self, value: int = 9) -> None:
-        await self.self_test(value=value)
+    async def start(self) -> None:
+        await self.self_test()
         asyncio.create_task(self._drive_all_lines())
 
-    async def self_test(self, value: int) -> None:
+    async def self_test(self) -> None:
         self._display_has_started = False
 
-        nums = [get_char(v) for v in range(value, -1, -1)]
+        chars: list[tuple] = [get_char(v) for v in 'PICOBRIDGE']
 
-        for number in nums:
+        for char in chars:
             self._display.fill(0)
-            for sq in number:
+            for sq in char:
                 a, b, c, d, e = sq
                 self._display.fill_rect(a, b, c, d, e)
 
             self._display.show()
-            await asyncio.sleep_ms(150)
+            await asyncio.sleep_ms(400)
 
         await asyncio.sleep_ms(200)
         self._display.fill(0)
