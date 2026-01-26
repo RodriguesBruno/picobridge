@@ -114,7 +114,7 @@ class _LineRenderer:
         self._blit_to_line(fb, idx)
         return True
 
-    def render(self) -> None:
+    def render(self) -> bool:
         dirty = False
         for idx in range(self._state.line_count()):
             text = self._state.lines_data[idx]
@@ -153,6 +153,8 @@ class _LineRenderer:
         if dirty:
             self._display.show()
 
+        return dirty
+
 
 class _BarRenderer:
     def __init__(self, display: SSD1306I2C, line_count: int, thickness: int = 4) -> None:
@@ -161,6 +163,7 @@ class _BarRenderer:
         self._bar_visible = False
         self._bar_length = 0
         self._prev_length = -1
+        self._prev_visible = False
         self._y = fb_line_height * line_count
         self._fb = self._get_bar_framebuf()
 
@@ -194,16 +197,19 @@ class _BarRenderer:
         fb = self._fb
 
         if self._bar_visible:
-            if self._bar_length != self._prev_length:
+            if (not self._prev_visible) or (self._bar_length != self._prev_length):
                 self._prev_length = self._bar_length
                 fb.fill(0)
                 fb.rect(0, 0, self._bar_length, self._bar_thickness, 1)
                 self._display.blit(fb, 0, self._y)
                 self._display.show()
         else:
-            fb.fill(0)
-            self._display.blit(fb, 0, self._y)
-            self._display.show()
+            if self._prev_visible:
+                fb.fill(0)
+                self._display.blit(fb, 0, self._y)
+                self._display.show()
+
+        self._prev_visible = self._bar_visible
 
 
 class _BrightnessController:
@@ -223,7 +229,7 @@ class _BrightnessController:
         self._brightness_screensaver = level
 
     async def reset(self) -> None:
-        await self.set_brightness(self._brightness_active)
+        await self.set_brightness(level=self._brightness_active)
 
     async def set_brightness(self, level: int) -> None:
         level = max(0, min(255, level))
@@ -261,26 +267,30 @@ class _ScreensaverController:
 
     async def activate(self) -> None:
         self._screensaver.activate()
-        await self._brightness.set_brightness(self._brightness.get_screensaver())
+        await self._brightness.set_brightness(level=self._brightness.get_screensaver())
         self._bar.hide()
 
     async def deactivate(self) -> None:
         self._screensaver.deactivate()
-        await self._brightness.set_brightness(self._brightness.get_active())
+        await self._brightness.set_brightness(level=self._brightness.get_active())
         self._bar.show()
 
     async def tick(self) -> None:
         now = time.ticks_ms()
         idle_ms = time.ticks_diff(now, self._last_activity_time)
-        idle_s = idle_ms / 1000
+        timeout_s = self._screensaver.get_timeout()
+        if timeout_s <= 0:
+            if self._screensaver.is_active():
+                await self.deactivate()
+            return
+        timeout_ms = timeout_s * 1000
 
         if self._screensaver.is_enabled():
-            if idle_s >= self._screensaver.get_timeout():
+            if idle_ms >= timeout_ms:
                 await self.activate()
             else:
-                remaining = self._screensaver.get_timeout() - idle_s
-                percent = remaining / self._screensaver.get_timeout()
-                bar_len = int(self._bar.display_width() * percent)
+                remaining_ms = timeout_ms - idle_ms
+                bar_len = (self._bar.display_width() * remaining_ms) // timeout_ms
 
                 if self._screensaver.is_active():
                     await self.deactivate()
@@ -300,6 +310,7 @@ class DisplayController:
 
         self._display_has_started: bool = False
         self._display.init_display()
+        self._display_lock = asyncio.Lock()
 
         self._line_count = 5
 
@@ -328,6 +339,7 @@ class DisplayController:
             for sq in number:
                 a, b, c, d, e = sq
                 self._display.fill_rect(a, b, c, d, e)
+
             self._display.show()
             await asyncio.sleep_ms(150)
 
@@ -423,10 +435,12 @@ class DisplayController:
     async def _drive_all_lines(self) -> None:
         while True:
             try:
+                dirty = False
                 if self._display_has_started:
-                    self._line_renderer.render()
+                    async with self._display_lock:
+                        dirty = self._line_renderer.render()
 
-                await asyncio.sleep_ms(30)
+                await asyncio.sleep_ms(30 if dirty else 100)
 
             except Exception as e:
                 print(f"[DISPLAY_CONTROLLER] Drive Lines Error: {e}")
@@ -434,7 +448,8 @@ class DisplayController:
     async def _drive_timer_bar(self) -> None:
         while True:
             try:
-                self._bar_renderer.step(self._display_has_started)
+                async with self._display_lock:
+                    self._bar_renderer.step(self._display_has_started)
                 await asyncio.sleep_ms(100)
 
             except Exception as e:
