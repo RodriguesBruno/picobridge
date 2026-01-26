@@ -151,9 +151,6 @@ class _LineRenderer:
 
                 dirty = True
 
-        if dirty:
-            self._display.show()
-
         return dirty
 
 
@@ -192,11 +189,12 @@ class _BarRenderer:
     def hide(self) -> None:
         self._bar_visible = False
 
-    def step(self, display_has_started: bool) -> None:
+    def step(self, display_has_started: bool) -> bool:
         if not display_has_started:
-            return
+            return False
 
         fb = self._fb
+        dirty = False
 
         if self._bar_visible:
             if (not self._prev_visible) or (self._bar_length != self._prev_length):
@@ -204,14 +202,15 @@ class _BarRenderer:
                 fb.fill(0)
                 fb.rect(0, 0, self._bar_length, self._bar_thickness, 1)
                 self._display.blit(fb, 0, self._y)
-                self._display.show()
+                dirty = True
         else:
             if self._prev_visible:
                 fb.fill(0)
                 self._display.blit(fb, 0, self._y)
-                self._display.show()
+                dirty = True
 
         self._prev_visible = self._bar_visible
+        return dirty
 
 
 class _BrightnessController:
@@ -329,7 +328,6 @@ class DisplayController:
     async def start(self, value: int = 9) -> None:
         await self.self_test(value=value)
         asyncio.create_task(self._drive_all_lines())
-        asyncio.create_task(self._drive_timer_bar())
 
     async def self_test(self, value: int) -> None:
         self._display_has_started = False
@@ -392,6 +390,9 @@ class DisplayController:
     async def clear_line(self, line: int) -> None:
         self._line_state.clear_line(line)
 
+    async def clear_lines(self) -> None:
+        self._line_state.clear_lines()
+
     async def write_to_line(self, line: int, text: str) -> None:
         self._line_state.write_to_line(line, text)
 
@@ -446,18 +447,11 @@ class DisplayController:
                     )
                     async with self._display_lock:
                         dirty = self._line_renderer.render()
+                        dirty = self._bar_renderer.step(self._display_has_started) or dirty
+                        if dirty:
+                            self._display.show()
 
-                await asyncio.sleep_ms(30 if (dirty or scrolling_active) else 100)
+                await asyncio.sleep_ms(25 if (dirty or scrolling_active) else 100)
 
             except Exception as e:
                 print(f"[DISPLAY_CONTROLLER] Drive Lines Error: {e}")
-
-    async def _drive_timer_bar(self) -> None:
-        while True:
-            try:
-                async with self._display_lock:
-                    self._bar_renderer.step(self._display_has_started)
-                await asyncio.sleep_ms(60)
-
-            except Exception as e:
-                print(f"[DISPLAY_CONTROLLER] Driver Bar Error: {e}")
