@@ -204,7 +204,7 @@ async def start_microdot(ip: str) -> None:
     port = config.get('picobridge', {}).get('webservice', {}).get('port', 8080)
 
     try:
-        await app.start_server(host=ip, port=port, debug=True)
+        await app.start_server(host=ip, port=port, debug=False)
 
     except Exception as e:
         logger.info(f"Error starting microdot server on {ip}:{port} - {e}")

@@ -5,14 +5,14 @@
     "location": "change_me",
     "port": 2222,
     "wlan":  {
-      "is_ad_hoc": true,
+      "is_ad_hoc": false,
       "ad_hoc": {
         "ssid": "PicoBridge",
         "psk": "pico1234"
       },
       "infrastructure": {
-        "ssid": "change_me",
-        "psk": "superpassword"
+        "ssid": "BEAMER",
+        "psk": "zaq123edc!"
       }
     },
     "uart": {

@@ -12,6 +12,18 @@ from src.system_monitor import SystemMonitor
 from src.telnet import telnet_negotiation
 from src.wlan import wlan_ap_mode, wlan_infra_mode
 from src.logger import Logger
+from src.default.config.default_config import DEFAULT_CONFIG
+
+
+def _merge_defaults(cfg: dict, defaults: dict) -> dict:
+    for k, v in defaults.items():
+        if k not in cfg:
+            cfg[k] = v
+
+        elif isinstance(v, dict) and isinstance(cfg.get(k), dict):
+            _merge_defaults(cfg[k], v)
+
+    return cfg
 
 
 class PicoBridge:
@@ -21,7 +33,8 @@ class PicoBridge:
 
         self._ws_manager: WebsocketManager = ws_manager
         self._config_path: str = config_path
-        self._config: dict = read_file_as_json(config_path)
+        self._config = read_file_as_json(config_path, default=DEFAULT_CONFIG)
+        self._config = _merge_defaults(self._config, DEFAULT_CONFIG)
         self._logger: Logger = Logger("[PicoBridge]")
 
         self._display_controller: DisplayController = display_controller
